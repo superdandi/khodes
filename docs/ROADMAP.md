@@ -1,0 +1,221 @@
+# Roadmap — Khodes
+
+**Estado:** plan vivo. Solo contiene estado de fases, alcance y criterios de
+salida. La lista ejecutable de tareas y el avance detallado viven en
+[`PLAN.md`](PLAN.md).
+
+---
+
+## Visión
+
+Khodes v1 es un piano eléctrico de tine, derivado de la voz Rhodes de Keys,
+que suena fiel en cualquier DAW mediante CLAP y VST3, con una UI propia y un
+proceso de release reproducible.
+
+---
+
+## Fases
+
+### M0 — Documentación y contratos
+
+**Estado:** completado con este entregable.
+
+Entregables:
+
+- [x] `README.md`
+- [x] `AGENTS.md`
+- [x] `VOICE_SPEC.md`
+- [x] `ARCHITECTURE.md`
+- [x] `PARAMETERS.md`
+- [x] `MIDI.md`
+- [x] `STATE_AND_PRESETS.md`
+- [x] `UI_SPEC.md`
+- [x] `REFERENCE_BUFFER_UPPERCUT.md`
+- [x] `DEV_SETUP.md`
+- [x] `TESTING.md`
+- [x] `RELEASES.md`
+- [x] `SITE.md`
+- [x] `LICENSING.md`
+- [x] `CONTRACTS.md`
+- [x] ADRs 0001–0005
+- [x] `PLAN.md` con la lista maestra de tareas y gates
+
+Criterio de salida: revisión humana de los documentos y aceptación de los
+contratos de parámetros, MIDI y preset. El avance tarea por tarea se marca en
+[`PLAN.md`](PLAN.md).
+
+---
+
+### M1 — Esqueleto del plugin
+
+Entregables:
+
+- `Cargo.toml`, `truce.toml`, `build.rs`.
+- Workspace con `dsp/`, `kit/`, `src/`, `ui/`.
+- `PluginLogic` mínimo con salida silenciosa.
+- CLAP y VST3 compilan e instancian.
+- CI básico de fmt, Clippy y tests.
+
+Criterio de salida: el plugin carga en REAPER y produce silencio sin crashear.
+
+---
+
+### M2 — Voz monofónica
+
+Entregables:
+
+- Oscilador fundamental y campana.
+- Envelope ADSR.
+- Key Click.
+- Una voz, una nota MIDI.
+- Tests de afinación y envelope.
+
+Criterio de salida: MIDI 60 suena con la afinación y el carácter esperados;
+A/B inicial contra Keys documentado.
+
+---
+
+### M3 — Polifonía y allocator
+
+Entregables:
+
+- Pool de 1–32 voces.
+- Voice stealing determinista.
+- Note-on/off, velocity, sustain.
+- 32 notas simultáneas sin crashes ni samples no finitos.
+
+Criterio de salida: acordes y pasajes rápidos estables; tests de allocator
+verdes.
+
+---
+
+### M4 — Bus global
+
+Entregables:
+
+- Drive, brightness, EQ.
+- Chorus, tremolo.
+- Reverb determinista.
+- Master y limitador de seguridad.
+- Smoothing de parámetros.
+
+Criterio de salida: barridos sin clics; CPU dentro de presupuesto; corpus v1
+congelado.
+
+---
+
+### M5 — Editor Slint
+
+Entregables:
+
+- Panel Voz/Env/Amp/FX.
+- Knobs, faders, sliders, readouts.
+- Medidor de voces/salida.
+- Estados hover/active/disabled.
+- Baselines de screenshots.
+
+Criterio de salida: editor usable en default, mínimo y wide; accesibilidad
+básica; sin diálogos de archivo propios.
+
+---
+
+### M6 — Estado y presets
+
+Entregables:
+
+- Estado del host vía TRUCE.
+- Presets de fábrica.
+- Códec `.khodespreset` v1.
+- Validación y tests de ida y vuelta.
+- Migración y rechazo de versiones.
+
+Criterio de salida: guardar/reabrir en dos DAWs; presets portables; sin notas
+reanudadas.
+
+---
+
+### M7 — MIDI avanzado
+
+Entregables:
+
+- Pitch bend.
+- Mod wheel.
+- CC120/121/123.
+- Eventos sample-accurate.
+- Pruebas de canales y overlapping holds.
+
+Criterio de salida: matriz MIDI de [TESTING](TESTING.md) verde.
+
+---
+
+### M8 — Primer preview público
+
+Entregables:
+
+- Sitio Astro con home, downloads e installation.
+- Workflow de release y Pages.
+- `VERSION.md`, `THIRDPARTY.json`, `APPROVED.txt`.
+- ZIPs unsigned para Windows, macOS y Linux.
+- Notas de release.
+
+Criterio de salida: draft revisado, checksums verificados, release publicada a
+mano, sitio actualizado.
+
+---
+
+### M9 — Estabilización
+
+Entregables:
+
+- Matriz de DAWs obligatoria completa.
+- Corrección de bugs.
+- CPU y memoria aceptadas.
+- Documentación de limitaciones.
+- Firma/notarización si aplica.
+
+Criterio de salida: versión `0.1.0` estable publicada.
+
+---
+
+## Fuera de alcance v1
+
+| Feature | Motivo |
+|---|---|
+| AU | Requiere otro wrapper y pruebas en Logic |
+| AAX | Requiere SDK de Avid y licencias |
+| VST2 | Formato legado |
+| MPE | Requiere pitch bend por nota y allocator más complejo |
+| MIDI 2.0 | Ecosistema todavía limitado |
+| Samples multimuestra | Cambia el modelo de producto |
+| Modelado físico | Fuera del alcance de fidelidad a Keys |
+| Arpegiador/secuenciador | Khodes es instrumento, no estación |
+| Presets en la nube | Requiere backend y cuentas |
+| Pan por voz | Puede romper la fidelidad del bus |
+| Reverb algorítmica | La convolución determinista es suficiente para v1 |
+
+---
+
+## Riesgos
+
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| Divergencia con Keys | Pérdida de identidad | Corpus A/B y criterios de VOICE_SPEC |
+| CPU de reverb | Dropouts | IR corta, benchmark, bypass |
+| Aliasing de campana | Dureza en agudos | Bandlimit / atenuación cerca de Nyquist |
+| Complejidad de TRUCE | Curva de aprendizaje | Empezar con el standalone y el ejemplo mínimo |
+| Licencias | Bloqueo de release | Revisión temprana de TRUCE/Slint |
+| Falta de DAWs | Compatibilidad no probada | Matriz obligatoria y documentación honesta |
+| Presets incompatibles | Pérdida de confianza | IDs estables y códec versionado |
+| Release accidental | Binarios rotos | Draft manual y `APPROVED.txt` |
+
+---
+
+## Métricas de éxito v1
+
+- El plugin carga en REAPER y Ableton Live sin crashear.
+- 16 voces simultáneas a 48 kHz usan menos del 10 % de un core en un CPU moderno.
+- El sonido es reconociblemente la voz de Keys en A/B.
+- Guardar/reabrir conserva los 19 parámetros.
+- Los presets v1 cargan en versiones 1.x futuras.
+- El sitio muestra la versión y los checksums correctos.
+- Un usuario puede instalar y tocar en menos de 10 minutos.

@@ -1,0 +1,48 @@
+# Rust
+/target/
+**/target/
+*.rs.bk
+*.pdb
+
+# Bundles y artefactos de plugin
+*.clap
+*.vst3
+*.component
+*.dll
+*.dylib
+*.so
+!vendor/**/*.so
+
+# Node / sitio
+node_modules/
+site/dist/
+site/.astro/
+site/.cache/
+npm-debug.log*
+yarn-error.log*
+
+# Capturas temporales (los baselines de screenshots/ sí se commitean)
+screenshots/tmp/
+screenshots/*.tmp.png
+*.tmp.png
+
+# Entorno y editores
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Cobertura y perfiles
+*.profraw
+*.profdata
+lcov.info
+/coverage/
+
+# Releases locales
+/releases/
+/dist/

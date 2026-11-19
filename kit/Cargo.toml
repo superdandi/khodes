@@ -1,0 +1,10 @@
+[package]
+name = "khodes-kit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Intencionalmente vacío: el códec y los presets de fábrica no dependen del
+# host ni de la UI. Ver docs/STATE_AND_PRESETS.md.

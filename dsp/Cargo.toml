@@ -1,0 +1,10 @@
+[package]
+name = "khodes-dsp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Intencionalmente vacío: el núcleo DSP no conoce TRUCE, Slint, el host ni el
+# sistema de archivos. Ver docs/adr/0003-dsp-ui-separation.md.

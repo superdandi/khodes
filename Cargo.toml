@@ -1,0 +1,25 @@
+# Espacio de trabajo Rust de Khodes.
+#
+# El crate raíz (plugin, integración TRUCE, MIDI y editor) se añadirá en M1-14.
+# Hasta entonces el workspace contiene solo los núcleos puros y testeables:
+# `dsp/` y `kit/`.
+
+[workspace]
+members = ["dsp", "kit"]
+resolver = "3"
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.92"
+repository = "https://github.com/khodes/khodes"
+
+[workspace.dependencies]
+khodes-dsp = { path = "dsp" }
+khodes-kit = { path = "kit" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"

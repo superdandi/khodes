@@ -1,0 +1,275 @@
+# Releases y versionado — Khodes
+
+**Estado:** proceso objetivo, basado en Buffer Uppercut.
+
+Khodes usa **GitHub Releases como fuente de verdad** de los binarios y un
+**sitio estático** que lee esas releases en tiempo de build. Ningún workflow
+publica una release automáticamente: el CI prepara un draft y una persona lo
+revisa y publica.
+
+---
+
+## 1. Esquema de versiones
+
+```text
+vMAJOR.MINOR.PATCH-preview.N
+```
+
+| Ejemplo | Significado |
+|---|---|
+| `v0.1.0-preview.1` | Primer preview público |
+| `v0.1.0-preview.2` | Segundo preview de la misma línea |
+| `v0.1.0` | Primera versión estable |
+| `v0.2.0` | Nueva funcionalidad compatible |
+| `v1.0.0` | Primer estable mayor |
+
+Reglas:
+
+- `MAJOR`: cambios incompatibles de contrato (parámetros, preset, formato).
+- `MINOR`: funcionalidad nueva compatible.
+- `PATCH`: correcciones compatibles.
+- `-preview.N`: preestreno, sin promesa de estabilidad, binarios sin firma.
+- La versión de producto es independiente de:
+  - `PRESET_VERSION` (códec `.khodespreset`);
+  - `DSP_CONTRACT_VERSION` (corpus de audio);
+  - versión del sitio.
+
+---
+
+## 2. Artefactos por release
+
+| Plataforma | Archivo |
+|---|---|
+| Windows x64 | `Khodes-VERSION-windows-x64-unsigned.zip` |
+| macOS (Apple silicon) | `Khodes-VERSION-macos-unsigned.zip` |
+| Linux x64 | `Khodes-VERSION-linux-x64-unsigned.zip` |
+| Integridad | `SHA256SUMS` |
+| Licencia | `LICENSE` |
+| Instalación | `INSTALL.txt` |
+| Notas | cuerpo de la release |
+
+Contenido de cada ZIP:
+
+- `Khodes.clap`;
+- `Khodes.vst3`;
+- `INSTALL.txt`;
+- `LICENSE`;
+- avisos de terceros cuando correspondan.
+
+El standalone no se distribuye.
+
+---
+
+## 3. Entradas obligatorias antes del tag
+
+Antes de crear `vVERSION`:
+
+1. **Versión en Cargo.** Actualizar la versión del workspace, incluida
+   `-preview.N`, y el lockfile.
+2. **`VERSION.md`.** Arquitecturas exactas, requisitos de OS/runtime, revisión
+   de fuente, instalación, limitaciones de seguridad y problemas conocidos.
+3. **`THIRDPARTY.json`.** Generado con `cargo-bundle-licenses 4.2.0` y revisado
+   manualmente. Resolver textos faltantes, copyrights y licencias de fuentes o
+   recursos nativos.
+4. **Smoke tests reales.** Registrar pruebas en DAW por plataforma y formato,
+   atadas a los artefactos candidatos. Completar [TESTING](TESTING.md) o
+   documentar limitaciones aceptadas.
+5. **`APPROVED.txt`.** Añadir la línea exacta `vVERSION` solo después de revisar
+   todo lo anterior.
+
+El workflow falla si faltan estos archivos. No se añaden aprobaciones de
+relleno para que CI pase.
+
+### 3.1 Generación de avisos
+
+```sh
+cargo install cargo-bundle-licenses --version 4.2.0 --locked
+cargo bundle-licenses --format json --output target/THIRDPARTY-audit.json
+node tools/check-notices.mjs target/THIRDPARTY-audit.json
+```
+
+La generación automática es una ayuda, no una revisión legal.
+
+---
+
+## 4. Flujo de release
+
+### 4.1 Preparar el commit
+
+```sh
+git diff --cached --check
+git commit -m "Release preview N"
+git push origin main
+```
+
+### 4.2 Crear el tag
+
+```sh
+git tag -a v0.1.0-preview.1 -m "Khodes 0.1.0-preview.1"
+git push origin v0.1.0-preview.1
+```
+
+El tag dispara el workflow **release.yml**.
+
+### 4.3 Qué hace el workflow
+
+1. Verifica que la versión del crate contenga `-preview.N`.
+2. Ejecuta fmt, Clippy, tests y `rt-paranoid`.
+3. Compila CLAP y VST3 para las tres plataformas.
+4. Valida los bundles exactos con `clap-validator` y `pluginval`.
+5. Comprueba avisos de terceros contra el baseline.
+6. Empaqueta los ZIP, `LICENSE`, `INSTALL.txt`, notas y `SHA256SUMS`.
+7. Crea un **draft prerelease**.
+8. Nunca publica ni sobrescribe una release publicada.
+
+### 4.4 Revisar el draft
+
+```sh
+gh run list --workflow release.yml --limit 5
+gh run view RUN_ID
+gh release view v0.1.0-preview.1 --json isDraft,assets,body
+gh release download v0.1.0-preview.1 --dir REVIEW_DIRECTORY
+```
+
+En un directorio temporal:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+```
+
+Verificar:
+
+- que los ZIP contienen CLAP y VST3;
+- que `INSTALL.txt` es correcto;
+- que `LICENSE` y avisos están presentes;
+- que las notas mencionan la versión exacta;
+- que los checksums coinciden;
+- que no hay artefactos internos.
+
+### 4.5 Publicar
+
+```sh
+gh release edit v0.1.0-preview.1 --draft=false --prerelease
+```
+
+La publicación es manual y deliberada. No se publica desde CI.
+
+### 4.6 Actualizar el sitio
+
+```sh
+gh workflow run pages.yml --ref main
+gh run list --workflow pages.yml --limit 5
+```
+
+Luego verificar en el navegador que la versión nueva aparece y que los enlaces
+de descarga funcionan.
+
+---
+
+## 5. Firma y promoción
+
+### 5.1 Previews
+
+- Sin Authenticode en Windows.
+- Sin Developer ID ni notarización en macOS.
+- `SHA256SUMS` verifica integridad, no identidad.
+- El usuario debe seguir `INSTALL.txt` y usar un proyecto de prueba.
+
+### 5.2 Stable
+
+La promoción a stable es un proceso separado:
+
+1. Acumular evidencia de DAWs y plataformas.
+2. Resolver limitaciones conocidas.
+3. Configurar firma y notarización.
+4. Revisar licencias y avisos.
+5. Publicar una versión sin `-preview`.
+6. Marcar el release como latest.
+7. Actualizar el sitio.
+
+No se “promueve” un preview renombrando el tag. Se crea un release nuevo.
+
+---
+
+## 6. Versionado de contratos
+
+| Contrato | Variable | Regla |
+|---|---|---|
+| Producto | `CARGO_PKG_VERSION` | Semver + `-preview.N` |
+| Preset nativo | `PRESET_VERSION` | Entero; cambia con el layout |
+| Corpus DSP | `DSP_CONTRACT_VERSION` | Entero; cambia con el sonido |
+| Estado del host | versión del wrapper | La gestiona TRUCE |
+| Sitio | metadata de release | No se versiona aparte |
+
+Un cambio de sonido intencional **no** cambia la versión del preset, pero sí
+crea un nuevo corpus y se documenta en las notas.
+
+---
+
+## 7. Changelog
+
+Formato recomendado:
+
+```markdown
+# Khodes 0.1.0-preview.1
+
+## Sonido
+- ...
+
+## Interfaz
+- ...
+
+## MIDI
+- ...
+
+## Estado y presets
+- ...
+
+## Plataformas
+- Windows x64, macOS arm64, Linux x64.
+- Sin firma.
+
+## Limitaciones conocidas
+- ...
+```
+
+Reglas:
+
+- Sin HTML no confiable; el sitio escapa el texto.
+- Mencionar cambios de sonido y de esquema.
+- Mencionar limitaciones aceptadas.
+- No afirmar compatibilidad no probada.
+
+---
+
+## 8. Rollback
+
+Si un release tiene un problema crítico:
+
+1. No borrar el tag ni sobrescribir assets publicados.
+2. Publicar un release nuevo con la corrección (`preview.N+1`).
+3. Si es necesario, marcar el release problemático como prerelease o añadir un
+   aviso en las notas.
+4. Actualizar el sitio.
+5. Documentar el incidente.
+
+Nunca se mueve un tag publicado.
+
+---
+
+## 9. Checklist de release
+
+- [ ] Versión actualizada en Cargo y lockfile.
+- [ ] `VERSION.md` revisado.
+- [ ] `THIRDPARTY.json` revisado.
+- [ ] Smoke tests de DAW registrados.
+- [ ] `APPROVED.txt` contiene la versión exacta.
+- [ ] `cargo fmt`, Clippy, tests y `rt-paranoid` verdes.
+- [ ] CLAP y VST3 compilan.
+- [ ] Validadores pasan sobre los bundles del tag.
+- [ ] Screenshots pasan.
+- [ ] Draft revisado.
+- [ ] Checksums verificados.
+- [ ] Release publicada manualmente.
+- [ ] Sitio actualizado y verificado.
+- [ ] Notas de release claras.

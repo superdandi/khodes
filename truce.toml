@@ -1,0 +1,19 @@
+# Identidad y formatos de Khodes.
+# Este archivo es la fuente de verdad; no duplicar estos datos en el código.
+# Ver docs/CONTRACTS.md y docs/adr/0001-stack-rust-truce-slint.md.
+
+[vendor]
+name = "Khodes"
+id = "dev.khodes"
+url = "https://github.com/khodes/khodes"
+au_manufacturer = "Khds"
+
+[[plugin]]
+name = "Khodes"
+bundle_id = "khodes"
+crate = "khodes"
+category = "instrument"
+fourcc = "Khds"
+au_tag = "Synths"
+midi_input = true
+vst3_subcategory = "Synth"
