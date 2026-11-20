@@ -759,10 +759,12 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   en 0,0 s y 0,5 s. El valor CLAP se aplica tras el primer ciclo de audio,
   porque el wrapper aplica cambios de parámetro del host en `params.flush`.
   M6-17 y M7-15 quedan parcialmente cerrados: falta Ableton Live.
-- Sitio: `npm test` 11/11; build offline con el fallback WASI local y
+- Sitio: `npm test` 17/17; build offline con el fallback WASI local y
   `test:build` OK (16 archivos, base `/khodes`, releases offline); build GitHub
   simulado con `RELEASES_SOURCE=github` y mock de API y `test:build` OK
-  (releases github). El fallback WASI no se commitea.
+  (releases github); build GitHub real con la release publicada y `test:build`
+  OK, con tres enlaces y checksums coherentes y sin tokens en el HTML. El
+  fallback WASI no se commitea.
 - Incidencia real de Pages: el primer despliegue de `main` falló en
   `test:build` porque no existía aún una release publicada y el verificador
   esperaba botones de descarga. Decisión: un build `github` sin releases
@@ -785,6 +787,16 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   `fail-fast`. Se cambió la comprobación a `test -e` y el empaquetado a
   `cp -R`, válidos para archivo y directorio. No se alteraron los bundles ni se
   relajaron validadores; se vuelve a etiquetar la misma versión.
+- Incidencia real de `Pages` tras publicar: el workflow del evento `release`
+  falló con `GitHub Releases devolvió HTTP 403` y dos ejecuciones manuales con
+  `No se pudo conectar con GitHub Releases`. El diagnóstico local reproducible
+  mostró dos causas: `getReleaseData` calculaba el token pero no lo pasaba a
+  `loadReleaseData` (API anónima → 403 por límite) y la descarga de
+  `SHA256SUMS` devuelve `302` a `*.githubusercontent.com`, incompatible con
+  `redirect: 'error'`. Se corrigió la propagación del token, se añadió una
+  redirección controlada sin reenviar el token y reintentos acotados para 403,
+  429, 5xx y red. Los errores de contrato no se reintentan. Con el fix pasan
+  los 17 tests y los tres builds, incluido el real contra la release publicada.
 - Limitaciones vigentes: revisión legal pendiente (`THIRDPARTY.json` con
   `review.completed=false`), previews `unsigned`, M4-22 (reverb a 0,7×),
   M2-19 (A/B contra Keys) y matriz incompleta de DAWs. No se afirma

@@ -500,7 +500,9 @@ npm run test:build
 
 `npm test` cubre el cliente de releases: respuesta de API, drafts, prereleases,
 orden, contrato de nombres, exclusión de internos, plataformas ausentes, escape,
-modo offline y fallo de API sin filtrar el token. `test:build` verifica sobre
+modo offline, fallo de API sin filtrar el token, reintentos de 403/red,
+redirección controlada del asset de checksums y propagación del token desde
+`getReleaseData`. `test:build` verifica sobre
 `dist/` las páginas, los enlaces internos, la ausencia de secretos, el canonical,
 los metadatos Open Graph, `robots.txt`, `sitemap.xml` y la coherencia entre
 botones de descarga y `SHA256SUMS`.
@@ -521,6 +523,21 @@ RELEASES_SOURCE=github GITHUB_REPOSITORY=superdandi/khodes npm run test:build
 Se esperan tres botones de descarga, notas con HTML escapado, checksums
 coherentes y ausencia del token en el HTML. El fixture no se usa en producción.
 
+### 13.2b Build GitHub real
+
+Con la release ya publicada y un token con permisos de solo lectura:
+
+```sh
+cd site
+RELEASES_SOURCE=github GITHUB_REPOSITORY=superdandi/khodes \
+GITHUB_TOKEN="$(gh auth token)" npm run build
+```
+
+Debe renderizar la versión `0.1.0-preview.1`, tres enlaces y los mismos hashes
+que `SHA256SUMS` de la release, sin tokens en `dist/`. Falló con HTTP 403 antes
+de propagar el token y con `unexpected redirect` antes de gestionar la `302`
+del asset; ambos casos quedan cubiertos por tests.
+
 ### 13.3 Assets de release
 
 ```sh
@@ -540,13 +557,16 @@ con CPU moderna, basta `npm ci`.
 
 ### 13.5 Estado de estas verificaciones
 
-Ejecutadas en local: 11/11 tests del sitio, build offline, build GitHub
-simulado, build GitHub sin releases publicadas, `test:build` en esos tres modos
-y verificador de assets con caso positivo y negativo. En GitHub, el primer
-workflow de Pages falló antes de corregir el verificador; la corrección está
-documentada en `PLAN.md`. No ejecutadas al cierre de esta edición: validadores
-sobre el tag, workflow de Pages con release publicada y publicación manual
-(M8-18…M8-20).
+Ejecutadas en local: 17/17 tests del sitio, build offline, build GitHub
+simulado, build GitHub sin releases publicadas, build GitHub real con la
+release publicada, `test:build` en esos cuatro modos y verificador de assets con
+caso positivo y negativo. En GitHub, el primer workflow de Pages falló antes de
+corregir el verificador y los posteriores fallaron por el token no propagado y
+la redirección del asset; las correcciones están documentadas en `PLAN.md` y
+`RELEASES.md`. La release `v0.1.0-preview.1` fue publicada manualmente el
+2026-11-20T14:37:30Z y sus assets pasaron `verify-release-assets` y
+`sha256sum -c`. Falta el despliegue verde de Pages con la release publicada para
+cerrar M8-20.
 
 ---
 

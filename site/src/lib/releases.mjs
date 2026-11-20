@@ -274,7 +274,47 @@ async function readBodyWithLimit(response, maxBytes) {
   return new TextDecoder().decode(Buffer.concat(chunks));
 }
 
-/** Petición limitada a GitHub. Nunca incluye el token en errores ni en URLs. */
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const ASSET_HOST_RE = /(^|\.)githubusercontent\.com$/i;
+
+class GithubClientError extends Error {}
+
+/**
+ * Valida el destino de una redirección de asset. Solo HTTPS, sin credenciales
+ * y limitado a GitHub o a sus hosts de descarga de releases.
+ */
+function safeRedirectLocation(location, originalUrl) {
+  let target;
+  try {
+    target = new URL(String(location), originalUrl);
+  } catch {
+    return null;
+  }
+  if (target.protocol !== 'https:' || target.username || target.password) return null;
+  const origin = new URL(originalUrl);
+  if (target.hostname === origin.hostname) return target.href;
+  return ASSET_HOST_RE.test(target.hostname) ? target.href : null;
+}
+
+function waitBeforeRetry(delayMs, attempt) {
+  return delayMs > 0
+    ? new Promise((resolve) => {
+        setTimeout(resolve, delayMs * attempt);
+      })
+    : Promise.resolve();
+}
+
+/**
+ * Petición limitada a GitHub. Nunca incluye el token en errores ni en URLs.
+ *
+ * Los fallos transitorios (403 de rate limit, 429, 5xx y red) se reintentan
+ * con espera lineal acotada. Un error de contrato en la lectura del cuerpo o
+ * en la redirección no se reintenta: debe fallar el build con su mensaje.
+ *
+ * `followRedirect` se usa solo para descargar assets: GitHub responde 302
+ * hacia un host de `githubusercontent.com`. El token nunca se envía al
+ * destino de la redirección.
+ */
 export async function fetchTextFromGithub(url, options = {}) {
   const token = String(options.token ?? '').trim();
   const headers = {
@@ -283,22 +323,57 @@ export async function fetchTextFromGithub(url, options = {}) {
     'X-GitHub-Api-Version': '2022-11-28',
   };
   if (token) headers.Authorization = `Bearer ${token}`;
+  const publicHeaders = {
+    Accept: options.accept ?? 'application/octet-stream',
+    'User-Agent': 'khodes-site-build',
+  };
 
-  let response;
-  try {
-    response = await (options.fetchImpl ?? fetch)(url, {
-      headers,
-      redirect: 'error',
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-  } catch {
-    throw new Error('No se pudo conectar con GitHub Releases');
+  const attempts = options.attempts ?? 3;
+  const delayMs = options.retryDelayMs ?? 1000;
+  const followRedirect = options.followRedirect === true;
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    let response;
+    try {
+      response = await fetchImpl(url, {
+        headers,
+        redirect: followRedirect ? 'manual' : 'error',
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+
+      if (followRedirect && REDIRECT_STATUSES.has(response.status)) {
+        const location = safeRedirectLocation(response.headers?.get?.('location'), url);
+        await response.body?.cancel?.();
+        if (!location) {
+          throw new GithubClientError('La redirección del asset de GitHub no es válida');
+        }
+        response = await fetchImpl(location, {
+          headers: publicHeaders,
+          redirect: 'error',
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+      }
+    } catch (error) {
+      if (error instanceof GithubClientError) throw error;
+      if (attempt === attempts) throw new Error('No se pudo conectar con GitHub Releases');
+      await waitBeforeRetry(delayMs, attempt);
+      continue;
+    }
+
+    if (response.ok) {
+      return await readBodyWithLimit(response, options.maxBytes ?? MAX_API_BYTES);
+    }
+
+    const status = response.status;
+    await response.body?.cancel?.();
+    const error = new Error(`GitHub Releases devolvió HTTP ${status}`);
+    const transient = status === 403 || status === 429 || status >= 500;
+    if (!transient || attempt === attempts) throw error;
+    await waitBeforeRetry(delayMs, attempt);
   }
 
-  if (!response.ok) {
-    throw new Error(`GitHub Releases devolvió HTTP ${response.status}`);
-  }
-  return readBodyWithLimit(response, options.maxBytes ?? MAX_API_BYTES);
+  throw new Error('No se pudo conectar con GitHub Releases');
 }
 
 function isValidRepoSlug(repoSlug) {
@@ -373,6 +448,7 @@ export async function loadReleaseData(options = {}) {
     ...options,
     accept: 'application/octet-stream',
     maxBytes: MAX_CHECKSUM_BYTES,
+    followRedirect: true,
   });
 
   const release = normalizeRelease(candidate, checksumText, { repoSlug });
@@ -393,7 +469,7 @@ export async function getReleaseData(options = {}) {
   const key = JSON.stringify({ source, repoSlug, tokenPresent: Boolean(token) });
 
   if (!cachedData || cachedData.key !== key) {
-    cachedData = { key, promise: loadReleaseData(options) };
+    cachedData = { key, promise: loadReleaseData({ ...options, token }) };
   }
   return cachedData.promise;
 }

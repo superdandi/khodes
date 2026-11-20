@@ -17,7 +17,7 @@ Windows y Linux.
 > 10 devolvió `SUCCESS`. REAPER 7.78 verificó en Linux ambos formatos: carga,
 > editor, dos notas MIDI, parámetros guardados y reabiertos (`brightness=0.42`,
 > `sustain=0.33`) y un render estéreo de 1 s sin clipping. El sitio Astro pasa
-> 11/11 tests y builds offline, GitHub simulado y GitHub sin releases. La aprobación humana para
+> 17/17 tests y builds offline, GitHub simulado, GitHub sin releases y GitHub real. La aprobación humana para
 > `v0.1.0-preview.1` existe en `APPROVED.txt` (ADR 0007); CI solo crea drafts y
 > la publicación es manual. Pendientes: validadores del tag en CI, Pages real,
 > Ableton Live, A/B contra Keys (M2-19) y CPU de la reverb (M4-22). Revisión

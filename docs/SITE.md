@@ -181,9 +181,12 @@ GitHub Pages
 
 - Escapar notas de release como texto plano.
 - No interpolar HTML no confiable.
-- No exponer tokens.
+- No exponer tokens y propagarlos desde `getReleaseData` a `loadReleaseData`:
+  las peticiones anónimas agotan el límite de 60/h y devuelven HTTP 403.
 - No confiar en nombres de archivo sin validar el contrato.
-- No seguir redirecciones arbitrarias.
+- Seguir solo la redirección controlada de assets hacia
+  `*.githubusercontent.com` por HTTPS, sin enviar el token al destino.
+- Reintentar únicamente fallos transitorios (403, 429, 5xx y red).
 - Limitar el tamaño de la respuesta.
 
 ---
@@ -290,8 +293,11 @@ Cubrir:
 - enlaces internos;
 - estado honesto sin release publicada (`id="no-release-title"`), sin botones
   ni checksums inventados;
+- reintentos de 403/red, redirección de asset sin filtrar el token y token
+  propagado a la API;
 - ausencia de tokens en el HTML;
-- build offline y build GitHub simulado.
+- build offline, build GitHub simulado y build GitHub real con la release
+  publicada.
 
 ---
 

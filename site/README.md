@@ -64,7 +64,7 @@ site/
 │   └── styles/
 │       └── global.css
 └── tests/
-    └── releases.test.mjs         11 tests del cliente de releases
+    └── releases.test.mjs         17 tests del cliente de releases
 ```
 
 Las páginas y el flujo de releases son contrato de producto. Las capturas
@@ -138,7 +138,7 @@ Con dominio propio, crear `public/CNAME` con el dominio exacto.
 | `npm run dev` | Sincroniza capturas y abre el servidor local |
 | `npm run build` | Sincroniza capturas y genera `site/dist/` |
 | `npm run preview` | Sirve `dist/` localmente |
-| `npm test` | 11 tests del cliente de releases |
+| `npm test` | 17 tests del cliente de releases |
 | `npm run test:build` | Verifica el HTML generado |
 
 Flujo recomendado antes de un PR:
@@ -178,7 +178,15 @@ npm run build
 ```
 
 `GITHUB_TOKEN` se usa solo durante el build. Nunca se escribe en el HTML ni en
-los assets.
+los assets. `getReleaseData` lo propaga explícitamente a `loadReleaseData`: sin
+ese paso las peticiones van anónimas y el límite de la API no autenticada (60
+peticiones/h) produce HTTP 403.
+
+La descarga de `SHA256SUMS` responde `302` hacia un host de
+`githubusercontent.com`. El cliente gestiona esa redirección de forma
+controlada: valida HTTPS, sin credenciales y host permitido, y **no envía el
+token al destino**. Los fallos transitorios (403, 429, 5xx y red) se reintentan
+hasta tres veces con espera 1 s y 2 s; un error de contrato no se reintenta.
 
 ### 5.3 Filtrado
 
@@ -211,7 +219,10 @@ elegida, se muestra “no disponible”; **no** se toma de una release anterior.
 - No exponer el token en logs ni en el HTML.
 - Validar nombres de archivo antes de construir URLs.
 - Limitar el tamaño de la respuesta de la API.
-- No seguir redirecciones arbitrarias.
+- No seguir redirecciones arbitrarias: solo `api.github.com` y hosts
+  `*.githubusercontent.com`, siempre HTTPS y sin credenciales en la URL.
+- Reintentar solo errores transitorios; mantener el mensaje original de los
+  errores de contrato.
 
 ---
 
@@ -372,7 +383,8 @@ solo verá la release cuando una persona la publique. Ver
 | Los assets dan 404 | Rutas absolutas sin `base` | Usar `import.meta.env.BASE_URL` |
 | No aparecen descargas | Sin release publicada o sin assets elegibles | Esperado: el sitio muestra «Sin descargas publicadas»; publicar la release y reconstruir |
 | Aparece una versión vieja | Caché o build sin release event | Ejecutar `pages.yml` a mano |
-| El build falla por API | Token ausente o rate limit | Revisar `GITHUB_TOKEN` y logs |
+| El build falla con HTTP 403 | Token no propagado o límite de API | Revisar `GITHUB_TOKEN` y que `getReleaseData` lo pase a `loadReleaseData` |
+| El build falla con `unexpected redirect` | Cambio en el host de descarga de assets | Revisar la allowlist de `githubusercontent.com` en `releases.mjs` |
 | Se muestran notas con HTML | Escape desactivado | Escapar como texto plano |
 | El sitio se ve vacío | `RELEASES_SOURCE` mal configurado | Usar `github` en producción |
 | `npm run build` termina con `EXIT:132` | Binding nativo de Astro exige AVX2/BMI2 | Aplicar el fallback WASI local descrito abajo |

@@ -3,7 +3,9 @@ import test from 'node:test';
 
 import {
   escapeHtml,
+  fetchTextFromGithub,
   findCandidateRelease,
+  getReleaseData,
   isValidAssetName,
   loadReleaseData,
   normalizeRelease,
@@ -185,6 +187,7 @@ test('un error de API falla el build y no filtra el token', async () => {
       source: 'github',
       repoSlug: REPO,
       token: 'ghp_super_secreto_no_renderizar',
+      retryDelayMs: 0,
       fetchImpl: failingFetch,
     }),
     /HTTP 500/,
@@ -196,6 +199,7 @@ test('un error de API falla el build y no filtra el token', async () => {
       source: 'github',
       repoSlug: REPO,
       token,
+      retryDelayMs: 0,
       fetchImpl: async () => {
         throw new Error('boom');
       },
@@ -206,4 +210,119 @@ test('un error de API falla el build y no filtra el token', async () => {
       return true;
     },
   );
+});
+
+test('reintenta un HTTP 403 transitorio sin filtrar el token', async () => {
+  const token = 'ghp_no_renderizar_en_logs';
+  let calls = 0;
+  const text = await fetchTextFromGithub('https://api.github.com/repos/superdandi/khodes/releases', {
+    token,
+    retryDelayMs: 0,
+    fetchImpl: async () => {
+      calls += 1;
+      return calls < 3
+        ? new Response('rate limited', { status: 403 })
+        : new Response('ok', { status: 200 });
+    },
+  });
+
+  assert.equal(calls, 3);
+  assert.equal(text, 'ok');
+});
+
+test('reintenta un fallo de red transitorio y falla si persiste', async () => {
+  let calls = 0;
+  const text = await fetchTextFromGithub('https://api.github.com/repos/superdandi/khodes/releases', {
+    retryDelayMs: 0,
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('ECONNRESET');
+      return new Response('ok', { status: 200 });
+    },
+  });
+  assert.equal(calls, 2);
+  assert.equal(text, 'ok');
+
+  await assert.rejects(
+    fetchTextFromGithub('https://api.github.com/repos/superdandi/khodes/releases', {
+      attempts: 2,
+      retryDelayMs: 0,
+      fetchImpl: async () => {
+        throw new Error('ECONNRESET');
+      },
+    }),
+    /No se pudo conectar con GitHub Releases/,
+  );
+});
+
+test('un HTTP 403 persistente falla con su estado y no se disfraza de red', async () => {
+  await assert.rejects(
+    fetchTextFromGithub('https://api.github.com/repos/superdandi/khodes/releases', {
+      attempts: 2,
+      retryDelayMs: 0,
+      fetchImpl: async () => new Response('forbidden', { status: 403 }),
+    }),
+    /HTTP 403/,
+  );
+});
+
+test('sigue la redirección del asset sin enviar el token al destino', async () => {
+  const token = 'ghp_no_enviar_a_la_cdn';
+  const target = 'https://objects.githubusercontent.com/github-production-release-asset/SHA256SUMS';
+  const expected = checksumText([WINDOWS, MACOS, LINUX]);
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), auth: init?.headers?.Authorization ?? null });
+    if (String(url).includes('/releases/assets/')) {
+      return new Response(null, { status: 302, headers: { Location: target } });
+    }
+    return new Response(expected, { status: 200 });
+  };
+
+  const text = await fetchTextFromGithub(`https://api.github.com/repos/${REPO}/releases/assets/99`, {
+    token,
+    accept: 'application/octet-stream',
+    followRedirect: true,
+    retryDelayMs: 0,
+    fetchImpl,
+  });
+
+  assert.equal(text, expected);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].url, target);
+  assert.equal(calls[1].auth, null);
+});
+
+test('rechaza redirecciones de asset a hosts ajenos', async () => {
+  await assert.rejects(
+    fetchTextFromGithub(`https://api.github.com/repos/${REPO}/releases/assets/99`, {
+      followRedirect: true,
+      retryDelayMs: 0,
+      fetchImpl: async () =>
+        new Response(null, {
+          status: 302,
+          headers: { Location: 'https://ejemplo-malicioso.test/SHA256SUMS' },
+        }),
+    }),
+    /redirección del asset de GitHub no es válida/,
+  );
+});
+
+test('getReleaseData propaga el token de build a la API', async () => {
+  const token = 'ghp_token_de_build';
+  let authHeader = null;
+  const fetchImpl = async (url, init) => {
+    if (String(url).includes('/releases?')) {
+      authHeader = init?.headers?.Authorization ?? null;
+      return new Response(JSON.stringify([release()]), { status: 200 });
+    }
+    if (String(url).includes('/releases/assets/')) {
+      return new Response(checksumText([WINDOWS, MACOS, LINUX]), { status: 200 });
+    }
+    throw new Error(`URL inesperada: ${url}`);
+  };
+
+  const data = await getReleaseData({ source: 'github', repoSlug: REPO, token, fetchImpl });
+  assert.equal(data.release.version, VERSION);
+  assert.equal(authHeader, `Bearer ${token}`);
 });

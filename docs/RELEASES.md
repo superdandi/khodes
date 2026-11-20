@@ -216,8 +216,12 @@ de descarga funcionan.
 | 2026-11-20 14:07 UTC | Corrección 1 de `release.yml` y nuevo tag | Extraer recursivamente los `*.tar.gz` del ZIP antes de buscar el ejecutable |
 | 2026-11-20 14:15 UTC | Segundo `Release` | macOS terminó el build pero falló `test -f target/bundles/Khodes.clap`: en macOS el bundle CLAP es directorio; Linux/Windows se cancelaron por `fail-fast` |
 | 2026-11-20 14:1x UTC | Corrección 2 de `release.yml` | Comprobar CLAP con `test -e` y copiarlo con `cp -R` en las tres plataformas; se vuelve a etiquetar la misma versión |
+| 2026-11-20 14:35 UTC | Tercer `Release` | Verde: 3 ZIP con CLAP/VST3, 3 hashes y `verify-release-assets: OK` |
+| 2026-11-20 14:37 UTC | Publicación manual | `gh release edit --draft=false --prerelease`; `publishedAt=2026-11-20T14:37:30Z` |
+| 2026-11-20 14:37 UTC | `Pages` tras publicar | Falló con `GitHub Releases devolvió HTTP 403`; dos reintentos manuales dieron `No se pudo conectar con GitHub Releases` |
+| 2026-11-20 14:45 UTC | Diagnóstico local | `getReleaseData` calculaba el token pero no lo pasaba a `loadReleaseData` (API anónima → 403); la descarga de `SHA256SUMS` devuelve `302` y `redirect: 'error'` abortaba |
 
-Dos decisiones derivadas de incidentes reales, no hipotéticos:
+Cuatro decisiones derivadas de incidentes reales, no hipotéticos:
 
 1. **Estado sin releases.** `RELEASES_SOURCE=github` con una respuesta válida y
    vacía no es un error de API: el sitio debe mostrar «Sin descargas
@@ -233,6 +237,15 @@ Dos decisiones derivadas de incidentes reales, no hipotéticos:
    usa `test -e` y `cp -R`, válidos también para los archivos de Linux y
    Windows. No se cambió el contenido de los bundles: solo su detección y
    empaquetado.
+5. **Cliente de releases en Pages.** El token de build debe propagarse desde
+   `getReleaseData` a `loadReleaseData`; si no, la API responde 403 por límite
+   de anónimo. La descarga de `SHA256SUMS` se gestiona con una redirección
+   controlada: solo HTTPS, sin credenciales y limitada a `api.github.com` o
+   `*.githubusercontent.com`, sin reenviar el token al destino. Los 403, 429,
+   5xx y fallos de red se reintentan hasta tres veces con espera acotada; los
+   errores de contrato mantienen su mensaje y fallan de inmediato. Un fallo de
+   API sigue fallando el build, pero una respuesta válida sin releases es un
+   estado honesto.
 
 El primer `CI` de `main` fue cancelado por un push posterior (`concurrency`
 con `cancel-in-progress: false` en otras workflows, pero el grupo de CI permite
