@@ -18,11 +18,13 @@
     {
       "name": "truce-clap",
       "version": "6.3.0",
-      "type": "rust-crate",
+      "type": "rust-crate-vendored",
       "license": "LicenseRef-TruceLicense-1.0",
-      "licenseDeclaredBy": "Cargo.lock / documentación de TRUCE",
-      "usage": "Binding CLAP",
-      "licenseTextIncluded": false,
+      "licenseDeclaredBy": "vendor/truce-clap/LICENSE (tag v6.3.0)",
+      "usage": "Binding CLAP; backport de RESCAN_VALUES tras load de estado",
+      "sourcePath": "vendor/truce-clap",
+      "patchDocumentedIn": "docs/adr/0008-truce-clap-state-rescan-backport.md",
+      "licenseTextIncluded": true,
       "reviewRequired": true
     },
     {
@@ -68,6 +70,13 @@
       "reviewRequired": true
     }
   ],
+  "releaseAuthorization": {
+    "version": "v0.1.0-preview.1",
+    "authorizedBy": "superdandi",
+    "date": "2026-11-20",
+    "scope": "Publicación del primer preview con revisión legal pendiente documentada; ver docs/adr/0007-github-owner-and-first-preview-publication.md",
+    "approvedFile": "APPROVED.txt"
+  },
   "review": {
     "completed": false,
     "owner": "",

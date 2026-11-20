@@ -5,7 +5,7 @@
 [vendor]
 name = "Khodes"
 id = "dev.khodes"
-url = "https://github.com/khodes/khodes"
+url = "https://github.com/superdandi/khodes"
 au_manufacturer = "Khds"
 
 [[plugin]]

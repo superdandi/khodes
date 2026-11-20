@@ -5,23 +5,24 @@ sección de voz del sintetizador **Keys** de **Studio Suite**, empaquetado como
 plugin de audio **CLAP + VST3** para usarse en cualquier DAW sobre macOS,
 Windows y Linux.
 
-> **Estado del proyecto:** fases M1–M7 implementadas. M4 cerrado con corpus
-> `contract/v1/` congelado (13 fixtures) y verificado; M5 cerrado con editor
-> Slint accesible y cuatro baselines en `screenshots/`; M6 cerrado con estado
-> del host vía TRUCE, códec `.khodespreset` v1 y 6 presets de fábrica; M7 cerrado
-> con MIDI sample-accurate, orden estable por offset, CC7 como ganancia de
-> performance y 9 tests de integración MIDI. El workspace compila, existen
-> bundles CLAP y VST3, el standalone de desarrollo compila y el smoke host CLAP
-> verifica la carga y el ciclo de estado. El DSP incluye la voz de Keys, un
-> allocator polifónico de hasta 32 voces y el bus de efectos (drive, brillo, EQ,
-> chorus, tremolo, reverb convolucional y master estéreo): **74 tests verdes**
-> con y sin `rt-paranoid`. M8 tiene el sitio Astro y los workflows de Pages y
-> release implementados y verificados en local, incluidos 10 tests del sitio y
-> builds offline y GitHub simulado; la publicación del preview sigue pendiente
-> de aprobación humana. Pendientes: optimizar el consumo de CPU de la reverb
-> cuando se activa (M4-22), validar en DAW real (guardar/reabrir M6-17 y matriz
-> MIDI M7-15), ejecutar CI con remote, ejecutar los validadores del tag
-> (M8-18) y hacer el A/B contra Keys. El avance tarea por tarea se marca en
+> **Estado del proyecto:** fases M0–M8 implementadas. M4 cerrado con corpus
+> `contract/v1/` congelado (13 fixtures); M5 cerrado con editor Slint accesible
+> y cuatro baselines; M6 y M7 cerrados en local con estado vía TRUCE, códec
+> `.khodespreset` v1, 6 presets de fábrica, MIDI sample-accurate, orden estable
+> por offset y 9 tests de integración MIDI. El DSP incluye la voz de Keys, un
+> allocator de hasta 32 voces y el bus de efectos (drive, brillo, EQ, chorus,
+> tremolo, reverb convolucional y master estéreo): **74 tests verdes** con y sin
+> `rt-paranoid`. Los bundles CLAP y VST3 se compilaron con `--target-cpu v2`;
+> `clap-validator` pasó 42/44 tests (2 skipped, 0 failures) y `pluginval` strict
+> 10 devolvió `SUCCESS`. REAPER 7.78 verificó en Linux ambos formatos: carga,
+> editor, dos notas MIDI, parámetros guardados y reabiertos (`brightness=0.42`,
+> `sustain=0.33`) y un render estéreo de 1 s sin clipping. El sitio Astro pasa
+> 10/10 tests y builds offline y GitHub simulado. La aprobación humana para
+> `v0.1.0-preview.1` existe en `APPROVED.txt` (ADR 0007); CI solo crea drafts y
+> la publicación es manual. Pendientes: validadores del tag en CI, Pages real,
+> Ableton Live, A/B contra Keys (M2-19) y CPU de la reverb (M4-22). Revisión
+> legal pendiente y binarios `unsigned`: no se afirma compatibilidad con DAWs
+> no validados. El avance tarea por tarea está en
 > [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Origen y referencias

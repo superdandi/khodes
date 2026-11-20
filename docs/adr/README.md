@@ -55,7 +55,9 @@ docs/adr/
 ├── 0003-dsp-ui-separation.md
 ├── 0004-versioned-preset-codec.md
 ├── 0005-site-and-release-versioning.md
-└── 0006-cc7-performance-gain.md
+├── 0006-cc7-performance-gain.md
+├── 0007-github-owner-and-first-preview-publication.md
+└── 0008-truce-clap-state-rescan-backport.md
 ```
 
 - Número de cuatro dígitos, secuencial, nunca reutilizado.
@@ -127,6 +129,8 @@ Qué código, tests y documentos deben cambiar. Checklist si aplica.
 | [0004](0004-versioned-preset-codec.md) | Códec de preset versionado | Aceptado | 2026-11-19 |
 | [0005](0005-site-and-release-versioning.md) | Sitio estático y versionado de releases | Aceptado | 2026-11-19 |
 | [0006](0006-cc7-performance-gain.md) | CC7 como ganancia de performance | Aceptado | 2026-11-20 |
+| [0007](0007-github-owner-and-first-preview-publication.md) | Owner de GitHub y primer preview | Aceptado | 2026-11-20 |
+| [0008](0008-truce-clap-state-rescan-backport.md) | Backport de RESCAN_VALUES en TRUCE CLAP | Aceptado | 2026-11-20 |
 
 ---
 

@@ -59,16 +59,17 @@ anuncia hasta que M9 valide los binarios.
 | M3 | Polifonía y allocator | **Implementada y verificada** | 32 notas sin fallos |
 | M4 | Bus global y efectos | **Implementada** (corpus v1 congelado; M4-22 abierta) | Corpus v1 congelado |
 | M5 | Editor Slint | **Implementada y verificada** | Editor usable en 3 tamaños |
-| M6 | Estado y presets | **Implementada y verificada** (falta M6-17 en DAW real) | Guardar/reabrir en 2 DAWs |
-| M7 | MIDI avanzado | Pendiente | Matriz MIDI verde |
-| M8 | Sitio y release | Pendiente | Draft revisado y publicado |
+| M6 | Estado y presets | **Implementada y verificada en REAPER** (falta Ableton Live) | Guardar/reabrir en 2 DAWs |
+| M7 | MIDI avanzado | **Implementada** (matriz REAPER parcial; falta Ableton Live) | Matriz MIDI verde |
+| M8 | Sitio y release | **Implementada y verificada en local** (M8-18/19/20 en curso) | Draft revisado y publicado |
 | M9 | Validación y estabilización | Pendiente | `v0.1.0` estable |
 
-**Bloqueo activo:** ninguno crítico. Toolchain validado, M1–M6 implementados.
-Pendientes de validación externa: carga en DAW real (M1-18), CI con remote
-(M1-22), render A/B contra Keys (M2-19) y guardar/reabrir en DAW real
-(M6-17). Incidencia de rendimiento abierta: M4-22 (reverb a 0,7× tiempo real
-en la CPU local). Siguiente tarea de código: M7 — MIDI avanzado.
+**Bloqueo activo:** ninguno crítico. M0–M8 implementados; validadores locales
+y REAPER 7.78 comprobados con los bundles release de esta CPU. Pendientes de
+validación externa: CI con remote y validadores del tag (M8-18), publicación
+manual (M8-19), Pages real (M8-20), Ableton Live (M6-17/M7-15) y render A/B
+contra Keys (M2-19). Incidencia de rendimiento abierta: M4-22 (reverb a 0,7×
+tiempo real en la CPU local). No se afirma compatibilidad con DAWs no probados.
 
 ---
 
@@ -330,7 +331,9 @@ bloquear y los baselines están comprometidos.
 - [x] **M6-14** Test de estado byte-estable.
 - [x] **M6-15** Test de carga con notas activas (todo se cancela).
 - [x] **M6-16** Verificar que no se guardan sustain, bend, LFO ni reverb.
-- [ ] **M6-17** Guardar y reabrir en REAPER y Ableton Live.
+- [ ] **M6-17** Guardar y reabrir en REAPER y Ableton Live. REAPER 7.78
+  verificado: CLAP y VST3 conservan `brightness=0.420000` tras guardar y
+  reabrir; falta Ableton Live.
 - [x] **M6-18** Documentar migración futura y límites del formato.
 
 **Criterio de salida:** los presets son portátiles, el estado es reproducible y
@@ -357,8 +360,9 @@ ningún proyecto se abre “sonando solo”.
 - [x] **M7-12** Test de CC123 con notas sostenidas.
 - [x] **M7-13** Test de host sin offsets (aplicación a inicio de bloque).
 - [x] **M7-14** Documentar limitaciones MIDI aceptadas.
-- [ ] **M7-15** Completar la matriz de DAWs obligatoria (bloqueada: no hay
-  REAPER ni Ableton Live en este entorno).
+- [ ] **M7-15** Completar la matriz de DAWs obligatoria. REAPER 7.78 verificado
+  con CLAP y VST3: carga, editor, dos notas MIDI, parámetros y render offline;
+  falta Ableton Live.
 
 **Criterio de salida:** todos los casos MIDI documentados pasan y las
 limitaciones están escritas.
@@ -396,9 +400,11 @@ limitaciones están escritas.
   `release.yml`; sin ejecución real hasta que exista tag y aprobación.
 - [x] **M8-17** Generar `SHA256SUMS` y verificarlo con
   `tools/verify-release-assets.mjs`.
-- [ ] **M8-18** Verificar validadores sobre los bundles del tag (bloqueado:
-  `pluginval` y `clap-validator` no están instalados en local; el workflow los
-  instala en CI y aún no se ha ejecutado).
+- [ ] **M8-18** Verificar validadores sobre los bundles del tag. En local:
+  `clap-validator` 44 tests (42 passed, 2 skipped, 0 failures) y
+  `pluginval --strictness-level 10` SUCCESS sobre
+  `target/bundles/Khodes.vst3`, compilados con `--target-cpu v2`. Falta
+  repetirlo en CI sobre los bundles exactos del tag.
 - [ ] **M8-19** Publicar `v0.1.0-preview.1` manualmente (bloqueado: no hay
   remote, no hay `APPROVED.txt` y CI solo crea drafts).
 - [ ] **M8-20** Confirmar que el sitio muestra versión y enlaces correctos
@@ -721,6 +727,46 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
 - M8-18, M8-19 y M8-20 siguen abiertos: no hay validadores instalados en local,
   no hay remote (`git remote -v` vacío) y no se crea `APPROVED.txt` sin
   aprobación humana. No se afirma release publicada ni sitio desplegado.
+
+### 2026-11-20 (continuación) — Aprobación, validadores y REAPER
+
+- El usuario confirmó los pasos 1–4 y autorizó literalmente: «te autorizo para
+  crear la aprobacion de relleno y para publicar el primer release todo en
+  automatico, documenta exhaustivamente el proceso y todas las deciciones».
+  Se creó `APPROVED.txt` con `v0.1.0-preview.1` y se registró la ADR 0007:
+  autorización humana explícita, no bypass; CI continúa sin publicar. «Todo en
+  automático» significa ejecución autónoma de los pasos autorizados, no
+  eliminación de la revisión humana.
+- Se creó el repo público `superdandi/khodes`, se configuró `origin` y las
+  variables `SITE_URL=https://superdandi.github.io` y `SITE_BASE=/khodes`.
+  Se adoptó `superdandi` como owner y `/khodes/` como base de Pages (ADR 0007).
+- Se corrigió el build release a `cargo truce build --clap --vst3
+  --target-cpu v2` (no `RUSTFLAGS`), porque esta CPU no soporta AVX2/BMI2.
+  Se vendorizó `truce-clap 6.3.0` (ADR 0008) con backport para emitir
+  `CLAP_PARAM_RESCAN_VALUES` tras `state_load` y publicar el snapshot inicial
+  en `init`; licencia incluida en `vendor/truce-clap/LICENSE`.
+- Validadores: `clap-validator` terminó con 44 tests, 42 passed, 0 failed,
+  0 warnings y 2 skipped. `pluginval --strictness-level 10
+  --validate target/bundles/Khodes.vst3` terminó con `SUCCESS`. M8-18 sigue
+  abierto hasta repetir la validación sobre los artefactos del tag en CI.
+- REAPER 7.78/linux-x86_64, bajo Xvfb `:99` y con dispositivo dummy
+  (`[REAPER] linux_audio_mode=2` en configuración aislada): detectó
+  `VST3i: Khodes (Khodes)` y `CLAPi: Khodes (Khodes)`. Ambos formatos cargan,
+  abren editor, reciben dos notas MIDI y conservan `brightness=0.420000` y
+  `sustain=0.330000` guardando y reabriendo el proyecto. El render offline
+  `/tmp/opencode/khodes-validation/render/khodes-reaper.wav` tiene 1,00 s,
+  estéreo, 48 kHz, 24 bits, peak −12,38 dBFS, RMS −25,92 dBFS y dos ataques
+  en 0,0 s y 0,5 s. El valor CLAP se aplica tras el primer ciclo de audio,
+  porque el wrapper aplica cambios de parámetro del host en `params.flush`.
+  M6-17 y M7-15 quedan parcialmente cerrados: falta Ableton Live.
+- Sitio: `npm test` 10/10; build offline con el fallback WASI local y
+  `test:build` OK (16 archivos, base `/khodes`, releases offline); build GitHub
+  simulado con `RELEASES_SOURCE=github` y mock de API y `test:build` OK
+  (releases github). El fallback WASI no se commitea.
+- Limitaciones vigentes: revisión legal pendiente (`THIRDPARTY.json` con
+  `review.completed=false`), previews `unsigned`, M4-22 (reverb a 0,7×),
+  M2-19 (A/B contra Keys) y matriz incompleta de DAWs. No se afirma
+  compatibilidad con DAWs no validados.
 
 ---
 

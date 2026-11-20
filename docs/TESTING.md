@@ -252,8 +252,8 @@ rechazos; los tests en `src/lib.rs` y `src/state.rs` cubren byte-estabilidad,
 carga con notas activas, ausencia de datos de performance y rechazo de blobs
 malformados; `dsp/src/lib.rs` prueba `Engine::reset`. El smoke host CLAP
 (`tools/clap-smoke.sh`) añade el ciclo real `clap.state`: guardar dos veces da
-el mismo bloque y cargar + guardar reproduce los bytes exactos. Sigue pendiente
-la ejecución en REAPER y Ableton Live (M6-17).
+el mismo bloque y cargar + guardar reproduce los bytes exactos. REAPER 7.78
+verificó guardar/reabrir en CLAP y VST3 (M6-17 parcial); falta Ableton Live.
 
 ---
 
@@ -279,11 +279,14 @@ Cualquier asignación, lock, log o acceso a disco en `process` falla el test.
 
 ## 8. Validadores de formato
 
-Construir bundles release:
+Construir bundles release en esta CPU x86-64-v2:
 
 ```sh
-cargo truce build --clap --vst3
+cargo truce build --clap --vst3 --target-cpu v2
 ```
+
+No usar `RUSTFLAGS="-C target-cpu=v2"`: Sling y otras dependencias pueden
+generar código no compatible con la CPU local.
 
 CLAP:
 
@@ -294,13 +297,15 @@ clap-validator validate "target/bundles/Khodes.clap"
 VST3:
 
 ```sh
-pluginval --strictness-level 10 --skip-gui-tests --validate "target/bundles/Khodes.vst3"
+pluginval --strictness-level 10 --validate "target/bundles/Khodes.vst3"
 ```
 
-- `clap-validator`: 0 fallos, 0 warnings.
-- `pluginval`: strictness 10; GUI tests en sesión interactiva antes de release.
+- Resultado local con los bundles release candidatos: `clap-validator` 44
+  tests, 42 passed, 0 failed, 0 warnings, 2 skipped; `pluginval` strictness 10
+  devolvió `SUCCESS`.
 - Los validadores corren sobre los bundles exactos del tag, no sobre un build
-  local distinto.
+  local distinto: M8-18 queda abierto hasta que `release.yml` repita la
+  validación en CI sobre los artefactos publicados.
 
 ### 8.1 Smoke host CLAP
 
@@ -374,6 +379,27 @@ Revisar visualmente antes de actualizar un baseline.
 13. Cambio de sample rate y block size sin crash.
 14. Automatización de brightness y volume.
 15. Preset del host: guardar, cambiar, cargar.
+
+### 10.2 Resultado REAPER 7.78 (2026-11-20)
+
+Entorno: REAPER `7.78/linux-x86_64` bajo Xvfb `:99`, con configuración aislada
+que usa el dispositivo dummy (`[REAPER] linux_audio_mode=2`). Sin ese backend
+los cambios de parámetro CLAP no se aplican porque REAPER no llama a
+`params.flush` hasta que hay ciclos de audio; no es un fallo del plugin.
+
+- El host detecta `VST3i: Khodes (Khodes)` y `CLAPi: Khodes (Khodes)`.
+- Ambos formatos: carga en pista de instrumento, editor abre, dos notas MIDI
+  (60 y 64) y parámetros `brightness=0.420000`, `sustain=0.330000` tras el
+  primer ciclo de audio.
+- Guardar y reabrir el proyecto conserva ambos valores en CLAP y VST3.
+- Render offline: `/tmp/opencode/khodes-validation/render/khodes-reaper.wav`,
+  1,00 s, estéreo, 48 kHz, 24 bits, peak −12,38 dBFS, RMS −25,92 dBFS, con
+  ataques en 0,0 s y 0,5 s y sin clipping.
+- `RENDER_BOUNDSFLAG=1` (proyecto completo) es necesario; con `0` el rango
+  queda vacío y REAPER muestra «Nothing to render!».
+
+Falta Ableton Live para cerrar M6-17 y M7-15. No se afirma compatibilidad con
+otros DAW solo por haber pasado los validadores.
 
 ---
 
@@ -486,10 +512,10 @@ Sin red y sin publicar nada:
 ```sh
 cd site
 KHODES_MOCK_GITHUB=1 RELEASES_SOURCE=github \
-GITHUB_REPOSITORY=khodes/khodes GITHUB_TOKEN=token-de-prueba \
+GITHUB_REPOSITORY=superdandi/khodes GITHUB_TOKEN=token-de-prueba \
 NODE_OPTIONS="--import $PWD/scripts/mock-github-releases.mjs" \
 npm run build
-RELEASES_SOURCE=github GITHUB_REPOSITORY=khodes/khodes npm run test:build
+RELEASES_SOURCE=github GITHUB_REPOSITORY=superdandi/khodes npm run test:build
 ```
 
 Se esperan tres botones de descarga, notas con HTML escapado, checksums

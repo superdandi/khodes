@@ -17,7 +17,12 @@ version = "0.0.0"
 edition = "2024"
 license = "MIT"
 rust-version = "1.92"
-repository = "https://github.com/khodes/khodes"
+repository = "https://github.com/superdandi/khodes"
+
+# Backport local de truce-clap 6.3.0: notifica RESCAN_VALUES tras cargar estado.
+# Documentado en docs/adr/0008-truce-clap-state-rescan-backport.md.
+[patch.crates-io]
+truce-clap = { path = "vendor/truce-clap" }
 
 [workspace.dependencies]
 khodes-dsp = { path = "dsp" }

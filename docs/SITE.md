@@ -273,10 +273,10 @@ Build GitHub simulado, sin red:
 ```sh
 cd site
 KHODES_MOCK_GITHUB=1 RELEASES_SOURCE=github \
-GITHUB_REPOSITORY=khodes/khodes GITHUB_TOKEN=token-de-prueba \
+GITHUB_REPOSITORY=superdandi/khodes GITHUB_TOKEN=token-de-prueba \
 NODE_OPTIONS="--import $PWD/scripts/mock-github-releases.mjs" \
 npm run build
-RELEASES_SOURCE=github GITHUB_REPOSITORY=khodes/khodes npm run test:build
+RELEASES_SOURCE=github GITHUB_REPOSITORY=superdandi/khodes npm run test:build
 ```
 
 Cubrir:

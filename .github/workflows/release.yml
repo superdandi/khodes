@@ -138,7 +138,7 @@ jobs:
             cargo truce build --clap --vst3
           fi
           test -f target/bundles/Khodes.clap
-          test -f target/bundles/Khodes.vst3
+          test -d target/bundles/Khodes.vst3
 
       - name: Install clap-validator
         run: |
@@ -184,7 +184,8 @@ jobs:
           zipname="Khodes-${version}-${PLATFORM}-unsigned.zip"
           stage="dist/${version}"
           mkdir -p "$stage"
-          cp target/bundles/Khodes.clap target/bundles/Khodes.vst3 "$stage/"
+          cp target/bundles/Khodes.clap "$stage/"
+          cp -R target/bundles/Khodes.vst3 "$stage/"
           cp LICENSE INSTALL.txt THIRDPARTY.json "$stage/"
           (
             cd "$stage"

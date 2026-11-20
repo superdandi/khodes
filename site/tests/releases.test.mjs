@@ -14,7 +14,7 @@ import {
 } from '../src/lib/releases.mjs';
 
 const VERSION = '0.1.0-preview.1';
-const REPO = 'khodes/khodes';
+const REPO = 'superdandi/khodes';
 const WINDOWS = `Khodes-${VERSION}-windows-x64-unsigned.zip`;
 const MACOS = `Khodes-${VERSION}-macos-unsigned.zip`;
 const LINUX = `Khodes-${VERSION}-linux-x64-unsigned.zip`;

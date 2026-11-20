@@ -9,6 +9,16 @@ revisa y publica.
 
 ---
 
+## 0. Repositorio y dominio de esta entrega
+
+La fuente de verdad es `superdandi/khodes` y la GitHub Page se sirve en
+`https://superdandi.github.io/khodes/`. El release se etiqueta en ese repositorio
+y el sitio lee sus releases públicas en tiempo de build mediante
+`GITHUB_REPOSITORY=superdandi/khodes`. La decisión y sus consecuencias están en
+[ADR 0007](adr/0007-github-owner-and-first-preview-publication.md).
+
+---
+
 ## 1. Esquema de versiones
 
 ```text
@@ -78,8 +88,20 @@ Antes de crear `vVERSION`:
 5. **`APPROVED.txt`.** Añadir la línea exacta `vVERSION` solo después de revisar
    todo lo anterior.
 
-El workflow falla si faltan estos archivos. No se añaden aprobaciones de
-relleno para que CI pase.
+El workflow falla si faltan estos archivos. La regla general es no añadir
+aprobaciones de relleno para que CI pase.
+
+**Excepción documentada para `v0.1.0-preview.1`:** el titular de la cuenta
+`superdandi` autorizó explícitamente el 2026-11-20 la creación de
+`APPROVED.txt` y la publicación del primer preview, con esta declaración:
+
+> te autorizo para crear la aprobacion de relleno y para publicar el primer release todo en automatico, documenta exhaustivamente el proceso y todas las deciciones
+
+No es un bypass del gate: `APPROVED.txt` contiene la versión exacta, CI volvió a
+validar todos los archivos obligatorios y el owner que aprobó es el mismo que
+controla el repositorio y el tag. La revisión legal de `THIRDPARTY.json` sigue
+pendiente y se publica como limitación conocida del preview, no como aprobación
+legal. Los detalles están en [ADR 0007](adr/0007-github-owner-and-first-preview-publication.md).
 
 ### 3.1 Generación de avisos
 
@@ -93,6 +115,13 @@ cargo bundle-licenses --format json --output target/THIRDPARTY-audit.json
 El inventario automático es una ayuda, no una revisión legal. Hasta entonces,
 `THIRDPARTY.json` declara `pendiente-de-revision` y el gate solo comprueba que
 existe y es JSON válido. La revisión humana sigue siendo obligatoria.
+
+Para este preview se vendorizó `truce-clap 6.3.0` en `vendor/truce-clap/` con un
+backport estrecho que emite `CLAP_PARAM_RESCAN_VALUES` tras una carga de estado
+y publica el snapshot inicial en `init`; sin él, `clap-validator` falla cuatro
+pruebas de reproducibilidad. El cambio, su licencia y las alternativas
+descartadas están en
+[ADR 0008](adr/0008-truce-clap-state-rescan-backport.md).
 
 ---
 

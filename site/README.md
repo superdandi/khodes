@@ -106,7 +106,7 @@ Valores que debe fijar una persona antes de publicar:
 ```text
 SITE_URL=https://khodes.example    # o https://TU-USUARIO.github.io
 SITE_BASE=/                        # o /khodes en subdirectorio
-GITHUB_REPOSITORY=owner/khodes
+GITHUB_REPOSITORY=superdandi/khodes
 ```
 
 El workflow `pages.yml` usa `vars.SITE_URL` y `vars.SITE_BASE` si están
@@ -172,7 +172,7 @@ npm run test:build
 ```sh
 cd site
 RELEASES_SOURCE=github \
-GITHUB_REPOSITORY=owner/khodes \
+GITHUB_REPOSITORY=superdandi/khodes \
 GITHUB_TOKEN="$(gh auth token)" \
 npm run build
 ```

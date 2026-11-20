@@ -3,7 +3,7 @@
  *
  * Uso:
  *   KHODES_MOCK_GITHUB=1 RELEASES_SOURCE=github \
- *   GITHUB_REPOSITORY=khodes/khodes GITHUB_TOKEN=token-de-prueba \
+ *   GITHUB_REPOSITORY=superdandi/khodes GITHUB_TOKEN=token-de-prueba \
  *   NODE_OPTIONS="--import $PWD/scripts/mock-github-releases.mjs" \
  *   npm run build
  *
@@ -13,7 +13,7 @@
 
 if (process.env.KHODES_MOCK_GITHUB === '1') {
   const VERSION = '0.1.0-preview.1';
-  const REPO = 'khodes/khodes';
+  const REPO = 'superdandi/khodes';
   const ASSETS = [
     `Khodes-${VERSION}-windows-x64-unsigned.zip`,
     `Khodes-${VERSION}-macos-unsigned.zip`,
