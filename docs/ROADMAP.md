@@ -154,16 +154,21 @@ en [`UI_SPEC.md`](UI_SPEC.md) §10 y §13.
 
 ### M6 — Estado y presets
 
+**Estado:** implementado y verificado; queda pendiente M6-17 (DAW real).
+
 Entregables:
 
-- Estado del host vía TRUCE.
-- Presets de fábrica.
-- Códec `.khodespreset` v1.
-- Validación y tests de ida y vuelta.
-- Migración y rechazo de versiones.
+- Estado del host vía TRUCE (`snapshot_into` / `load_state`, bloque custom con
+  el nombre del preset; los 19 parámetros los persiste TRUCE).
+- Seis presets de fábrica en `kit/`.
+- Códec `.khodespreset` v1 con CRC-32, validación estricta y carga atómica.
+- 16 tests del códec, tests de estado y de reset; smoke CLAP con ciclo
+  guardar/cargar byte-estable.
+- Migración y rechazo de versiones documentados en
+  [`STATE_AND_PRESETS.md`](STATE_AND_PRESETS.md) §5–§6.
 
-Criterio de salida: guardar/reabrir en dos DAWs; presets portables; sin notas
-reanudadas.
+Criterio de salida: guardar/reabrir en dos DAWs (pendiente); presets portables;
+sin notas reanudadas (verificado con notas activas en test unitario).
 
 ---
 

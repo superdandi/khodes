@@ -59,16 +59,16 @@ anuncia hasta que M9 valide los binarios.
 | M3 | Polifonía y allocator | **Implementada y verificada** | 32 notas sin fallos |
 | M4 | Bus global y efectos | **Implementada** (corpus v1 congelado; M4-22 abierta) | Corpus v1 congelado |
 | M5 | Editor Slint | **Implementada y verificada** | Editor usable en 3 tamaños |
-| M6 | Estado y presets | Pendiente | Guardar/reabrir en 2 DAWs |
+| M6 | Estado y presets | **Implementada y verificada** (falta M6-17 en DAW real) | Guardar/reabrir en 2 DAWs |
 | M7 | MIDI avanzado | Pendiente | Matriz MIDI verde |
 | M8 | Sitio y release | Pendiente | Draft revisado y publicado |
 | M9 | Validación y estabilización | Pendiente | `v0.1.0` estable |
 
-**Bloqueo activo:** ninguno crítico. Toolchain validado, M1–M5 implementados.
+**Bloqueo activo:** ninguno crítico. Toolchain validado, M1–M6 implementados.
 Pendientes de validación externa: carga en DAW real (M1-18), CI con remote
-(M1-22) y render A/B contra Keys (M2-19). Incidencia de rendimiento abierta:
-M4-22 (reverb a 0,7× tiempo real en la CPU local). Siguiente tarea de código:
-M6 — estado y presets.
+(M1-22), render A/B contra Keys (M2-19) y guardar/reabrir en DAW real
+(M6-17). Incidencia de rendimiento abierta: M4-22 (reverb a 0,7× tiempo real
+en la CPU local). Siguiente tarea de código: M7 — MIDI avanzado.
 
 ---
 
@@ -314,24 +314,24 @@ bloquear y los baselines están comprometidos.
 **Objetivo:** persistencia correcta y portátil.
 **Gate:** guardar/reabrir en dos DAWs sin reanudar notas.
 
-- [ ] **M6-01** Implementar el estado del host vía TRUCE.
-- [ ] **M6-02** Definir los 6 presets de fábrica en `kit/`.
-- [ ] **M6-03** Implementar `PRESET_VERSION = 1` y el layout binario.
-- [ ] **M6-04** Implementar CRC-32.
-- [ ] **M6-05** Implementar `encode` con nombre UTF-8 y límite de 63 bytes.
-- [ ] **M6-06** Implementar `decode` con validación completa.
-- [ ] **M6-07** Implementar carga atómica.
-- [ ] **M6-08** Implementar rechazo de magic, versión, CRC y tamaño.
-- [ ] **M6-09** Implementar rechazo de IDs, rangos y UTF-8 inválido.
-- [ ] **M6-10** Test round-trip de los 19 parámetros.
-- [ ] **M6-11** Test round-trip de los 6 presets.
-- [ ] **M6-12** Test de valores extremos y nombres multibyte.
-- [ ] **M6-13** Test de truncamiento y bytes extra.
-- [ ] **M6-14** Test de estado byte-estable.
-- [ ] **M6-15** Test de carga con notas activas (todo se cancela).
-- [ ] **M6-16** Verificar que no se guardan sustain, bend, LFO ni reverb.
+- [x] **M6-01** Implementar el estado del host vía TRUCE.
+- [x] **M6-02** Definir los 6 presets de fábrica en `kit/`.
+- [x] **M6-03** Implementar `PRESET_VERSION = 1` y el layout binario.
+- [x] **M6-04** Implementar CRC-32.
+- [x] **M6-05** Implementar `encode` con nombre UTF-8 y límite de 63 bytes.
+- [x] **M6-06** Implementar `decode` con validación completa.
+- [x] **M6-07** Implementar carga atómica.
+- [x] **M6-08** Implementar rechazo de magic, versión, CRC y tamaño.
+- [x] **M6-09** Implementar rechazo de IDs, rangos y UTF-8 inválido.
+- [x] **M6-10** Test round-trip de los 19 parámetros.
+- [x] **M6-11** Test round-trip de los 6 presets.
+- [x] **M6-12** Test de valores extremos y nombres multibyte.
+- [x] **M6-13** Test de truncamiento y bytes extra.
+- [x] **M6-14** Test de estado byte-estable.
+- [x] **M6-15** Test de carga con notas activas (todo se cancela).
+- [x] **M6-16** Verificar que no se guardan sustain, bend, LFO ni reverb.
 - [ ] **M6-17** Guardar y reabrir en REAPER y Ableton Live.
-- [ ] **M6-18** Documentar migración futura y límites del formato.
+- [x] **M6-18** Documentar migración futura y límites del formato.
 
 **Criterio de salida:** los presets son portátiles, el estado es reproducible y
 ningún proyecto se abre “sonando solo”.
@@ -587,8 +587,50 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   `cargo truce build --clap --vst3 --target-cpu v2`. También corregido el
   formato de `src/editor.rs` (`cargo fmt --all`) y el tipo complejo del closure
   de sincronización (`type SyncFn`).
-- Siguiente acción: M6 — estado y presets (`khodes-kit`).
-- Riesgo vigente: M4-22 (CPU de la reverb) y disco con ≈4,0 GB libres.
+- M6-01 completado: `PersistentState` en `src/state.rs` con `#[derive(State)]`;
+  `snapshot_into` publica el nombre en el slot lock-free y devuelve siempre
+  `true` para que el host llame a `load_state`. TRUCE persiste los 19 parámetros
+  en el sobre del host; el bloque custom solo guarda el nombre. `load_state`
+  valida el bloque, aplica el nombre y llama a `Engine::reset()`,
+  `MidiMapper::reset()` y limpia `sustain` sin reasignar buffers.
+- M6-02…M6-09 completados: `kit/src/lib.rs` define `PRESET_VERSION = 1`, el
+  layout v1 little-endian, CRC-32/ISO-HDLC (validado con el vector estándar),
+  `encode`/`decode` estrictos, carga atómica y los 6 presets de fábrica con
+  valores normalizados precalculados (el crate no puede depender del raíz).
+- M6-10…M6-16 completados: 16 tests en `kit/tests/codec.rs` (round-trip de los
+  19 parámetros y los 6 presets, extremos, nombres multibyte y de 63 bytes,
+  truncamiento, bytes extra, IDs duplicados/fuera de rango, NaN/inf/fuera de
+  rango, CRC y tamaño), 5 tests de estado en `src/lib.rs`, 3 en `src/state.rs` y
+  `reset_clears_controllers_and_voices` en `dsp/src/lib.rs`.
+- M6-18 completado: migración, límites y versionado independiente documentados
+  en `STATE_AND_PRESETS.md` §5–§6; el ADR 0004 ya estaba aceptado.
+- El combo del editor usa `khodes_kit::factory`, guarda el nombre con
+  `state.set_state(...)` y sincroniza `status-text` y la selección desde el
+  snapshot del host. Desapareció la tabla provisional de 4 presets de M5.
+- M6 verificado: `cargo fmt --all -- --check` y Clippy `-D warnings` (`EXIT:0`
+  en `/tmp/khodes-m6-fmt2.log` y `/tmp/khodes-m6-clippy.log`); 64 tests verdes
+  con y sin `rt-paranoid` (`/tmp/khodes-m6-test1.log`, `/tmp/khodes-m6-rt.log`);
+  frontera DSP limpia, corpus v1 con 13 checksums correctos,
+  `cargo truce doctor` `EXIT:0` y 120 enlaces internos sin faltantes.
+- Baselines regenerados con `cargo run --example screenshots`: 1120×700,
+  920×620, 1440×760 y 1120×700 con RGBA alpha=255 en los cuatro.
+- Smoke CLAP ampliado (`tools/clap_smoke_test.c`): `clap.state` devuelve 296
+  bytes, guardar dos veces da el mismo bloque y cargar + guardar reproduce los
+  bytes exactos. El volcado del bloque contiene `Tine Classic`, lo que confirma
+  que el nombre viaja en el estado. Verificado sobre el bundle de
+  `target/bundles/` y sobre el instalado en `~/.clap`
+  (`/tmp/khodes-m6-smoke-final.log`, `/tmp/khodes-m6-smoke-installed.log`,
+  ambos `EXIT:0`).
+- Bundles CLAP y VST3 reconstruidos con `--target-cpu v2`
+  (`/tmp/khodes-m6-build2.log`, `EXIT:0`; 5 min 59 s la pasada final),
+  instalados en `~/.clap` y `~/.vst3`. El `.so` de VST3 exporta
+  `GetPluginFactory`. Incidencia: el build supera los 10 min en esta CPU;
+  espacio libre reducido a 1,2 GB, vigilar antes de M8.
+- M6-17 queda pendiente: no hay REAPER ni Ableton Live en este entorno, así
+  que no se afirma compatibilidad con DAW real.
+- Siguiente acción: M7 — MIDI avanzado.
+- Riesgo vigente: M4-22 (CPU de la reverb), M6-17 (DAW real) y disco con
+  1,1 GB libres.
 
 ---
 

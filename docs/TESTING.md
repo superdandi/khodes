@@ -237,6 +237,14 @@ cargo test -p khodes-dsp --test contract
 - Guardar dos veces sin cambios.
 - Compatibilidad v1 → 1.x futura.
 
+**Resultado M6:** 16 tests en `kit/tests/codec.rs` cubren los códecs y
+rechazos; los tests en `src/lib.rs` y `src/state.rs` cubren byte-estabilidad,
+carga con notas activas, ausencia de datos de performance y rechazo de blobs
+malformados; `dsp/src/lib.rs` prueba `Engine::reset`. El smoke host CLAP
+(`tools/clap-smoke.sh`) añade el ciclo real `clap.state`: guardar dos veces da
+el mismo bloque y cargar + guardar reproduce los bytes exactos. Sigue pendiente
+la ejecución en REAPER y Ableton Live (M6-17).
+
 ---
 
 ## 7. rt-paranoid

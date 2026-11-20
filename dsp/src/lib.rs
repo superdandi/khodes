@@ -167,7 +167,14 @@ impl Engine {
         self.allocator.active_count()
     }
 
-    #[cfg(test)]
+    /// Estado actual del bend en semitonos. Solo diagnóstico y pruebas.
+    #[must_use]
+    pub fn bend_semitones(&self) -> f64 {
+        self.bend_semitones
+    }
+
+    /// Estado actual de la rueda de modulación. Solo diagnóstico y pruebas.
+    #[must_use]
     pub fn mod_wheel(&self) -> f64 {
         self.mod_wheel
     }
@@ -320,6 +327,45 @@ mod tests {
             params,
         );
         out
+    }
+
+    #[test]
+    fn reset_clears_controllers_and_voices() {
+        let mut engine = Engine::default();
+        engine.prepare(48_000.0, 512);
+        let mut out = [0.0; 512];
+        engine.process(
+            &mut out,
+            &[
+                Event::new(
+                    0,
+                    EventBody::NoteOn {
+                        channel: 0,
+                        note: 60,
+                        velocity: 1.0,
+                        note_id: 1,
+                    },
+                ),
+                Event::new(0, EventBody::PitchBend { semitones: 2.0 }),
+                Event::new(0, EventBody::ModWheel { amount: 0.8 }),
+                Event::new(
+                    0,
+                    EventBody::Sustain {
+                        channel: 0,
+                        enabled: true,
+                    },
+                ),
+            ],
+            &Params::default(),
+        );
+        assert_eq!(engine.active_voices(), 1);
+        assert!(engine.bend_semitones().abs() > 0.0);
+        assert!(engine.mod_wheel() > 0.0);
+
+        engine.reset();
+        assert_eq!(engine.active_voices(), 0);
+        assert_eq!(engine.bend_semitones(), 0.0);
+        assert_eq!(engine.mod_wheel(), 0.0);
     }
 
     #[test]

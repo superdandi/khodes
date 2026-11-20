@@ -1,6 +1,9 @@
 # Estado y presets — Khodes
 
-**Estado:** contrato v1 propuesto.
+**Estado:** contrato v1 implementado y verificado (falta validación en DAW real).
+
+La implementación vive en `kit/src/lib.rs` (códec y presets), `src/state.rs`
+(bloque custom) y `PluginLogic::snapshot_into` / `load_state` en `src/lib.rs`.
 
 Khodes tiene dos caminos de persistencia:
 
@@ -38,6 +41,15 @@ un formato de intercambio y de fábrica.
 - TRUCE expone el estado del plugin como un bloque opaco.
 - El bloque contiene los 19 parámetros normalizados y el nombre del preset.
 - No se añaden parámetros de host para metadatos.
+- **Implementación:** TRUCE persiste automáticamente los 19 IDs en el sobre del
+  host (`params`). El bloque `extra` lo produce `snapshot_into`, que serializa
+  solo el nombre del preset con `#[derive(State)]` y devuelve siempre `true`
+  para que el host invoque `load_state`. El snapshot se publica en un slot
+  lock-free de 256 bytes reutilizables; por eso el bloque se mantiene pequeño.
+- `load_state` corre en el hilo de audio entre bloques: valida el bloque y
+  llama a `Engine::reset()`, `MidiMapper::reset()` y limpia `sustain`. No llama
+  a `Engine::prepare()` porque reasignaría buffers. Un blob malformado se
+  rechaza sin mutar el plugin ni cancelar notas.
 - Al restaurar:
   - se cancelan todas las notas;
   - se limpia el sustain;
@@ -225,6 +237,14 @@ host guarda estado del proyecto
 8. Cargar preset con el editor cerrado y abierto.
 9. Guardar dos veces sin cambios: mismo bloque.
 10. Preset v1 cargado por una versión futura 1.x.
+
+**Cobertura actual:** los puntos 1–7 y 9 están cubiertos por 16 tests en
+`kit/tests/codec.rs`, tests de estado en `src/state.rs` y `src/lib.rs` y el
+test de reset en `dsp/src/lib.rs`. El punto 8 se cubre en parte: el smoke CLAP
+ejecuta el ciclo guardar/cargar sin editor abierto y `src/editor.rs`
+sincroniza el combo desde el snapshot del host. El punto 10 queda para la
+primera versión 1.x futura. La prueba en DAW real (REAPER y Ableton Live,
+M6-17 del plan) sigue pendiente.
 
 ---
 

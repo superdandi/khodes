@@ -7,7 +7,7 @@
 //!
 //! Ver `docs/UI_SPEC.md` y `docs/adr/0003-dsp-ui-separation.md`.
 
-use std::sync::Arc;
+use std::{cell::RefCell, sync::Arc};
 
 use truce::core::editor::PluginContextReadF64;
 use truce::prelude::Editor;
@@ -15,105 +15,12 @@ use truce_slint::slint::include_modules;
 use truce_slint::{PluginContext, SlintEditor};
 
 use crate::params::KhodesParams;
+use crate::state::{DEFAULT_PRESET_NAME, PersistentState};
 
 include_modules!();
 
 /// Closure de sincronización que `SlintEditor` llama en cada frame.
 type SyncFn = Box<dyn Fn(&PluginContext<KhodesParams>)>;
-
-/// Presets de fábrica del editor, en el orden del `ComboBox` de Slint.
-/// Cada fila son los 19 valores normalizados de `docs/PARAMETERS.md`.
-/// M6 migrará esta tabla a `khodes-kit` como presets `.khodespreset`.
-const FACTORY_PRESETS: [[f64; 19]; 4] = [
-    // Init: defaults del contrato.
-    [
-        1.0,
-        0.0,
-        0.020100502512562814,
-        0.07035175879396985,
-        0.6,
-        0.09547738693467336,
-        0.3,
-        0.0,
-        0.5,
-        0.5,
-        0.4,
-        0.0,
-        0.16,
-        0.0,
-        0.0,
-        0.4838709677419355,
-        0.08333333333333333,
-        0.5,
-        0.5,
-    ],
-    // Bright.
-    [
-        1.0,
-        0.1,
-        0.01,
-        0.15,
-        0.5,
-        0.12,
-        0.35,
-        0.15,
-        0.45,
-        0.6,
-        0.4,
-        0.05,
-        0.16,
-        0.1,
-        0.15,
-        0.4838709677419355,
-        0.08333333333333333,
-        0.6,
-        0.5,
-    ],
-    // Warm.
-    [
-        0.55,
-        0.0,
-        0.03,
-        0.1,
-        0.75,
-        0.2,
-        0.3,
-        0.05,
-        0.6,
-        0.4,
-        0.3,
-        0.1,
-        0.12,
-        0.15,
-        0.25,
-        0.4838709677419355,
-        0.08333333333333333,
-        0.45,
-        0.5,
-    ],
-    // Punch.
-    [
-        0.9,
-        0.25,
-        0.005,
-        0.05,
-        0.3,
-        0.08,
-        0.4,
-        0.35,
-        0.55,
-        0.55,
-        0.5,
-        0.0,
-        0.2,
-        0.0,
-        0.05,
-        0.4838709677419355,
-        0.08333333333333333,
-        0.7,
-        0.5,
-    ],
-];
 
 /// Conecta el callback `changed` de un control con `set_param` del host.
 /// El gesto `begin`/`end` lo emite la UI por separado (un solo par de callbacks
@@ -180,15 +87,19 @@ fn setup(state: PluginContext<KhodesParams>, source: MeterSource) -> SyncFn {
     let end = state.clone();
     ui.on_end_edit(move |id| end.end_edit(id as u32));
 
-    // El combo aplica presets de fábrica como 19 gestos completos. No abre
-    // archivos: los presets completos del host se cargan desde el host (AGENTS).
-    let preset = state.clone();
+    // El combo aplica presets de fábrica de `khodes-kit` como 19 gestos
+    // completos y guarda el nombre en el bloque custom del host. No abre
+    // archivos: los presets completos se cargan desde el host (AGENTS.md).
+    let params_ctx = state.clone();
+    let state_ctx = state.clone();
     ui.on_preset_changed(move |index| {
-        if let Some(values) = FACTORY_PRESETS.get(index as usize) {
-            for (i, value) in values.iter().enumerate() {
-                preset.automate((i + 1) as u32, *value);
-            }
+        let Some(preset) = usize::try_from(index).ok().and_then(khodes_kit::factory) else {
+            return;
+        };
+        for (i, value) in preset.values.iter().enumerate() {
+            params_ctx.automate((i + 1) as u32, *value);
         }
+        state_ctx.set_state(PersistentState::named(preset.name).encode());
     });
 
     wire!(ui, state, 1, on_brightness_changed);
@@ -217,6 +128,12 @@ fn setup(state: PluginContext<KhodesParams>, source: MeterSource) -> SyncFn {
     let meter_voices = state.params().meter_voices.id();
     let meter_note = state.params().meter_note.id();
     let meter_sustain = state.params().meter_sustain.id();
+
+    // El nombre del preset viaja en el bloque custom del host. Se lee del
+    // snapshot lock-free y solo se escribe en la UI cuando cambia, para no
+    // provocar repaints innecesarios (UI_SPEC §5).
+    let last_status = RefCell::new(String::new());
+    let last_preset_index = RefCell::new(0_i32);
 
     Box::new(move |ctx: &PluginContext<KhodesParams>| {
         sync!(ui, ctx, 1, set_brightness, set_brightness_text);
@@ -256,6 +173,29 @@ fn setup(state: PluginContext<KhodesParams>, source: MeterSource) -> SyncFn {
             ui.set_meter_note(ctx.get_meter(meter_note));
             ui.set_meter_sustain(ctx.get_meter(meter_sustain));
             ui.set_meter_voices(ctx.get_meter(meter_voices));
+        }
+
+        let name = PersistentState::decode(&ctx.get_state())
+            .map(|persistent| persistent.preset_name)
+            .unwrap_or_else(|| DEFAULT_PRESET_NAME.to_string());
+        let status = format!("{name} · Khodes 0.1.0-preview.1");
+        {
+            let mut previous = last_status.borrow_mut();
+            if *previous != status {
+                ui.set_status_text(status.clone().into());
+                *previous = status;
+            }
+        }
+        let index = khodes_kit::FACTORY_PRESETS
+            .iter()
+            .position(|preset| preset.name == name)
+            .unwrap_or(0) as i32;
+        {
+            let mut previous = last_preset_index.borrow_mut();
+            if *previous != index {
+                ui.set_preset_index(index);
+                *previous = index;
+            }
         }
     })
 }
