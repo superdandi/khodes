@@ -771,6 +771,14 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   publicadas». Se corrigió `check-build.mjs` para aceptar ese estado y rejects
   la mezcla de estado vacío con descargas o checksums; se añadió un test. El
   sitio se reconstruirá con el evento `release: published`.
+- Incidencia real de `Release`: el primer workflow falló en `Validate CLAP` de
+  Linux sin salida del validador. El ZIP verificado de `clap-validator 0.4.1`
+  contiene un `tar.gz` anidado (también en macOS; Windows trae el `.exe`
+  directo), por lo que `find` no encontraba ejecutable. Se corrigió
+  `release.yml` para extraer los `*.tar.gz` antes de buscar el binario y se
+  añadió traza de la ruta. No se desactivó ni sustituyó el validador. Como el
+  fallo ocurrió antes de crear el draft, se re etiquetará la misma versión en
+  el commit corregido y se repetirá el workflow.
 - Limitaciones vigentes: revisión legal pendiente (`THIRDPARTY.json` con
   `review.completed=false`), previews `unsigned`, M4-22 (reverb a 0,7×),
   M2-19 (A/B contra Keys) y matriz incompleta de DAWs. No se afirma

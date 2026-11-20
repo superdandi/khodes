@@ -147,12 +147,18 @@ jobs:
           curl -fsSL -o tools/validators/clap-validator.zip '${{ matrix.clap_validator_url }}'
           node -e "const c=require('crypto'),f=require('fs');const h=c.createHash('sha256').update(f.readFileSync('tools/validators/clap-validator.zip')).digest('hex');if(h!=='${{ matrix.clap_validator_sha256 }}'){console.error('clap-validator checksum mismatch: '+h);process.exit(1)}"
           unzip -q tools/validators/clap-validator.zip -d tools/validators/clap-validator
+          # El artefacto publicado para 0.4.1 contiene un tar.gz con el binario,
+          # no el binario directamente. Extraer ambos niveles de forma segura.
+          find tools/validators/clap-validator -type f -name '*.tar.gz' -exec \
+            tar -xzf {} -C tools/validators/clap-validator \;
 
       - name: Validate CLAP
         run: |
           set -eu
           validator=$(find tools/validators/clap-validator -type f \( -name 'clap-validator' -o -name 'clap-validator.exe' \) | head -1)
           test -n "$validator"
+          echo "validator=$validator"
+          ls -l "$validator"
           chmod +x "$validator"
           "$validator" validate target/bundles/Khodes.clap
 

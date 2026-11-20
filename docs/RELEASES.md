@@ -204,6 +204,35 @@ gh run list --workflow pages.yml --limit 5
 Luego verificar en el navegador que la versión nueva aparece y que los enlaces
 de descarga funcionan.
 
+### 4.7 Registro de la ejecución real de `v0.1.0-preview.1`
+
+| Momento | Acción | Resultado |
+|---|---|---|
+| 2026-11-20 13:53 UTC | `gh api POST repos/superdandi/khodes/pages -f build_type=workflow` | Pages habilitado con Actions y URL `https://superdandi.github.io/khodes/` |
+| 2026-11-20 13:54 UTC | Push de `main` y tag `v0.1.0-preview.1` | Disparados `CI`, `Pages` y `Release` |
+| 2026-11-20 13:54 UTC | Primer `Pages` | Falló: `check-build` exigía descargas cuando aún no había release publicada |
+| 2026-11-20 13:57 UTC | Corrección de `check-build.mjs` y push a `main` | `Pages` y `CI` pasaron; sitio desplegado con estado honesto «Sin descargas publicadas» |
+| 2026-11-20 14:04 UTC | Primer `Release` | Falló en `Validate CLAP` de Linux: el ZIP de `clap-validator 0.4.1` contiene un `tar.gz`, no el binario; `find` devolvió vacío |
+| 2026-11-20 14:0x UTC | Corrección de `release.yml` | Extraer recursivamente los `*.tar.gz` del ZIP antes de buscar el ejecutable; se vuelve a etiquetar la misma versión |
+
+Dos decisiones derivadas de incidentes reales, no hipotéticos:
+
+1. **Estado sin releases.** `RELEASES_SOURCE=github` con una respuesta válida y
+   vacía no es un error de API: el sitio debe mostrar «Sin descargas
+   publicadas». `check-build.mjs` acepta `id="no-release-title"`, prohíbe mezclarlo
+   con botones de descarga y sigue exigiendo checksums cuando hay descargas.
+   Un fallo HTTP, JSON inválido o contrato roto sigue fallando el build.
+2. **Artefacto anidado del validador.** La URL con checksum verificado de
+   `clap-validator 0.4.1` para Linux y macOS entrega un `tar.gz` dentro del ZIP.
+   El workflow extrae ahora ambos niveles y registra la ruta del ejecutable.
+   No se relajó ningún validador: se corrigió la instalación.
+
+El primer `CI` de `main` fue cancelado por un push posterior (`concurrency`
+con `cancel-in-progress: false` en otras workflows, pero el grupo de CI permite
+cancelar el run anterior al llegar uno nuevo). El `CI` definitivo del commit
+publicado terminó verde con doctor, fmt, Clippy, tests, `rt-paranoid`, DSP
+boundary, bundles CLAP/VST3 y smoke host CLAP.
+
 ---
 
 ## 5. Firma y promoción
