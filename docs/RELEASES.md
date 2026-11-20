@@ -213,7 +213,9 @@ de descarga funcionan.
 | 2026-11-20 13:54 UTC | Primer `Pages` | Falló: `check-build` exigía descargas cuando aún no había release publicada |
 | 2026-11-20 13:57 UTC | Corrección de `check-build.mjs` y push a `main` | `Pages` y `CI` pasaron; sitio desplegado con estado honesto «Sin descargas publicadas» |
 | 2026-11-20 14:04 UTC | Primer `Release` | Falló en `Validate CLAP` de Linux: el ZIP de `clap-validator 0.4.1` contiene un `tar.gz`, no el binario; `find` devolvió vacío |
-| 2026-11-20 14:0x UTC | Corrección de `release.yml` | Extraer recursivamente los `*.tar.gz` del ZIP antes de buscar el ejecutable; se vuelve a etiquetar la misma versión |
+| 2026-11-20 14:07 UTC | Corrección 1 de `release.yml` y nuevo tag | Extraer recursivamente los `*.tar.gz` del ZIP antes de buscar el ejecutable |
+| 2026-11-20 14:15 UTC | Segundo `Release` | macOS terminó el build pero falló `test -f target/bundles/Khodes.clap`: en macOS el bundle CLAP es directorio; Linux/Windows se cancelaron por `fail-fast` |
+| 2026-11-20 14:1x UTC | Corrección 2 de `release.yml` | Comprobar CLAP con `test -e` y copiarlo con `cp -R` en las tres plataformas; se vuelve a etiquetar la misma versión |
 
 Dos decisiones derivadas de incidentes reales, no hipotéticos:
 
@@ -226,6 +228,11 @@ Dos decisiones derivadas de incidentes reales, no hipotéticos:
    `clap-validator 0.4.1` para Linux y macOS entrega un `tar.gz` dentro del ZIP.
    El workflow extrae ahora ambos niveles y registra la ruta del ejecutable.
    No se relajó ningún validador: se corrigió la instalación.
+3. **CLAP como directorio en macOS.** `test -f` asumía que `Khodes.clap` siempre
+   es un archivo, pero TRUCE genera un bundle directorio en macOS. El workflow
+   usa `test -e` y `cp -R`, válidos también para los archivos de Linux y
+   Windows. No se cambió el contenido de los bundles: solo su detección y
+   empaquetado.
 
 El primer `CI` de `main` fue cancelado por un push posterior (`concurrency`
 con `cancel-in-progress: false` en otras workflows, pero el grupo de CI permite

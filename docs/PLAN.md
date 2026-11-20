@@ -779,6 +779,12 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   añadió traza de la ruta. No se desactivó ni sustituyó el validador. Como el
   fallo ocurrió antes de crear el draft, se re etiquetará la misma versión en
   el commit corregido y se repetirá el workflow.
+- Segunda incidencia de `Release`: tras corregir el validador, macOS terminó el
+  build pero falló `test -f target/bundles/Khodes.clap`; en macOS TRUCE genera
+  el bundle CLAP como directorio. Linux y Windows se cancelaron por
+  `fail-fast`. Se cambió la comprobación a `test -e` y el empaquetado a
+  `cp -R`, válidos para archivo y directorio. No se alteraron los bundles ni se
+  relajaron validadores; se vuelve a etiquetar la misma versión.
 - Limitaciones vigentes: revisión legal pendiente (`THIRDPARTY.json` con
   `review.completed=false`), previews `unsigned`, M4-22 (reverb a 0,7×),
   M2-19 (A/B contra Keys) y matriz incompleta de DAWs. No se afirma

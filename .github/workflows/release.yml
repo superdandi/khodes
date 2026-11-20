@@ -137,7 +137,8 @@ jobs:
           else
             cargo truce build --clap --vst3
           fi
-          test -f target/bundles/Khodes.clap
+          # En macOS el bundle CLAP es un directorio; en Linux/Windows es un archivo.
+          test -e target/bundles/Khodes.clap
           test -d target/bundles/Khodes.vst3
 
       - name: Install clap-validator
@@ -190,7 +191,7 @@ jobs:
           zipname="Khodes-${version}-${PLATFORM}-unsigned.zip"
           stage="dist/${version}"
           mkdir -p "$stage"
-          cp target/bundles/Khodes.clap "$stage/"
+          cp -R target/bundles/Khodes.clap "$stage/"
           cp -R target/bundles/Khodes.vst3 "$stage/"
           cp LICENSE INSTALL.txt THIRDPARTY.json "$stage/"
           (
