@@ -135,6 +135,24 @@ cargo truce build --clap --vst3
 cargo truce install --clap --vst3
 ```
 
+### 5.1 CPU objetivo en x86_64
+
+Por defecto, `cargo truce build` compila con `-C target-cpu=x86-64-v3`
+(AVX2 + FMA + BMI2). Es correcto para los bundles publicados y para CI, pero
+falla en CPUs antiguas sin AVX2 con `SIGILL: illegal instruction` al ejecutar
+los build scripts.
+
+Para desarrollo en una máquina así:
+
+```sh
+cargo truce build --clap --vst3 --target-cpu v2
+# o, solo para pruebas locales:
+cargo truce build --clap --vst3 --target-cpu native
+```
+
+No usar `native` para artefactos distribuidos: el binario deja de ser portable
+a otras CPUs.
+
 Artefactos:
 
 ```text
@@ -256,6 +274,7 @@ npm run test:build
 | El plugin crashea al cargar | Estado o preset inválido | Probar con estado limpio; revisar validación |
 | Sonido con clics | Sin smoothing o robo sin fade | Revisar [VOICE_SPEC](VOICE_SPEC.md) y tests |
 | CPU alta | Reverb o polyphony excesiva | Medir con benchmark; bajar polyphony |
+| `SIGILL` en build scripts | CPU sin AVX2 y target `x86-64-v3` por defecto | `cargo truce build --target-cpu v2` |
 | El sitio no muestra descargas | Releases en draft o sin assets | Publicar release; revisar workflow |
 | El sitio falla el build | API de GitHub o token | Revisar logs; no silenciar el error |
 

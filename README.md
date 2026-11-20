@@ -5,9 +5,14 @@ sección de voz del sintetizador **Keys** de **Studio Suite**, empaquetado como
 plugin de audio **CLAP + VST3** para usarse en cualquier DAW sobre macOS,
 Windows y Linux.
 
-> **Estado del proyecto:** documentación de diseño y especificación inicial.
-> Todavía no existe código de plugin en este repositorio. Este documento y la
-> carpeta `docs/` son la fuente de verdad para la implementación.
+> **Estado del proyecto:** fases M1 y M2 avanzadas; en transición a M3.
+> El workspace compila, existen bundles CLAP y VST3, el standalone de desarrollo
+> compila y el smoke host CLAP verifica la carga del plugin. El núcleo DSP ya
+> implementa la voz monofónica de Keys (dos osciladores, ADSR, campana, key
+> click, velocity y bend) con 16 tests verdes. Aún no están implementados el bus
+> de efectos, la polifonía, los presets ni el sitio. La validación en DAW real
+> y el A/B de audio contra Keys están pendientes. El avance tarea por tarea se
+> marca en [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Origen y referencias
 
@@ -58,21 +63,26 @@ modelo de parámetros. Khodes es un instrumento: recibe MIDI y genera audio.
 6. **Documentación mantenida.** Cada dato vive en un solo documento autoritativo
    y los demás lo enlazan.
 
-## Mapa del repositorio previsto
+## Mapa del repositorio
 
 ```text
 khodes/
 ├── README.md                  Este documento
 ├── AGENTS.md                  Reglas para agentes y colaboradores
-├── Cargo.toml                 Espacio de trabajo Rust (pendiente)
-├── truce.toml                 Identidad y formatos (pendiente)
-├── dsp/                       Motor de audio puro (pendiente)
-├── kit/                       Presets, kits y códec .khodespreset (pendiente)
-├── src/                       Integración TRUCE, parámetros, MIDI, editor (pendiente)
-├── ui/                        Componentes Slint (pendiente)
-├── contract/                  Corpus de regresión DSP versionados (pendiente)
+├── Cargo.toml                 Espacio de trabajo y crate raíz del plugin
+├── Cargo.lock                 Versiones fijadas (TRUCE 6.3.0, Slint 1.15.1)
+├── rust-toolchain.toml        Rust 1.92.0
+├── build.rs                   Compilación de la UI Slint
+├── truce.toml                 Identidad, formatos y categoría del plugin
+├── .github/workflows/         CI de build, tests y validadores
+├── dsp/                       Motor de audio puro (voz monofónica implementada)
+├── kit/                       Presets y códec .khodespreset (esqueleto)
+├── src/                       Integración TRUCE, parámetros y editor
+├── ui/                        Componentes Slint (ventana mínima)
+├── tools/                     Guarda de frontera DSP y smoke host CLAP
+├── contract/                  Corpus de regresión DSP (pendiente)
 ├── screenshots/               Baselines del editor (pendiente)
-├── docs/                      Documentación técnica (este entregable)
+├── docs/                      Documentación técnica y plan
 └── site/                      Sitio Astro de producto (pendiente)
 ```
 

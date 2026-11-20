@@ -268,6 +268,23 @@ pluginval --strictness-level 10 --skip-gui-tests --validate "target/bundles/Khod
 - Los validadores corren sobre los bundles exactos del tag, no sobre un build
   local distinto.
 
+### 8.1 Smoke host CLAP
+
+Cuando no hay `clap-validator` o DAW disponible, se usa el host mínimo de
+`tools/`: carga el bundle como un DSO, comprueba el símbolo `clap_entry`, crea
+una instancia desde la factory, verifica el descriptor y ejecuta cuatro bloques
+de 256 frames con salida finita.
+
+```sh
+sh tools/clap-smoke.sh target/bundles/Khodes.clap
+```
+
+El script clona las cabeceras oficiales de CLAP en `$TMPDIR/khodes-clap-smoke`,
+compila el host con `cc` y lo ejecuta. Es una comprobación de carga y ciclo de
+vida, **no** una validación de cumplimiento ni una prueba en DAW; CI la ejecuta
+como comprobación adicional, sin sustituir a los validadores formales ni a la
+matriz de DAW de la sección 10.
+
 ---
 
 ## 9. Screenshots del editor

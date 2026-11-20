@@ -48,19 +48,36 @@ contratos de parámetros, MIDI y preset. El avance tarea por tarea se marca en
 
 ### M1 — Esqueleto del plugin
 
+**Estado:** esqueleto y builds completados. Bundles CLAP y VST3 generados e
+instalados, standalone compilado y smoke host CLAP verde. Pendientes: primera
+ejecución real de CI (M1-22) y validación en DAW real (M1-18; REAPER no está
+instalado en este equipo, así que no se afirma compatibilidad). Detalle en
+[`PLAN.md`](PLAN.md).
+
 Entregables:
 
 - `Cargo.toml`, `truce.toml`, `build.rs`.
 - Workspace con `dsp/`, `kit/`, `src/`, `ui/`.
 - `PluginLogic` mínimo con salida silenciosa.
 - CLAP y VST3 compilan e instancian.
-- CI básico de fmt, Clippy y tests.
+- Standalone de desarrollo (`target/release/khodes-standalone`, no distribuido).
+- CI básico de fmt, Clippy, tests y smoke host CLAP.
+- `tools/clap-smoke.sh`: carga del bundle y ciclo de vida verificado sin DAW.
 
 Criterio de salida: el plugin carga en REAPER y produce silencio sin crashear.
+**Pendiente de verificar en host real**; la comprobación disponible es el smoke
+host CLAP de [`TESTING.md`](TESTING.md) §8.1.
 
 ---
 
 ### M2 — Voz monofónica
+
+**Estado:** implementada y con tests verdes. `dsp::Params`, eventos con
+`sample_offset`, PRNG SplitMix64, dos osciladores, ADSR con la cola de 50 ms de
+Keys, campana, key click, velocity, pitch bend y fine tune; integrados en el
+wrapper. `cargo test --workspace --release`: 16 tests, 0 fallos. Pendiente el
+render A/B contra Keys (M2-19), que requiere render offline de Web Audio no
+disponible en este entorno. Detalle en [`PLAN.md`](PLAN.md).
 
 Entregables:
 
@@ -71,7 +88,8 @@ Entregables:
 - Tests de afinación y envelope.
 
 Criterio de salida: MIDI 60 suena con la afinación y el carácter esperados;
-A/B inicial contra Keys documentado.
+A/B inicial contra Keys documentado. **A/B pendiente**; la afinación está
+verificada a ±1 cent en MIDI 21, 60, 69 y 108.
 
 ---
 

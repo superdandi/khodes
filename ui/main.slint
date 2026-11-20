@@ -1,0 +1,21 @@
+// Editor mínimo de Khodes.
+// En M5 se implementa el HUD completo descrito en docs/UI_SPEC.md.
+
+export component KhodesUi inherits Window {
+    title: "Khodes";
+    width: 1120px;
+    height: 700px;
+
+    Rectangle {
+        background: #0a0a14;
+
+        Text {
+            text: "KHODES";
+            color: #ffdd44;
+            font-size: 42px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}

@@ -125,18 +125,31 @@ que carga en un DAW.
 - [x] **M1-09** Crear `Cargo.toml` virtual con `dsp/` y `kit/`, resolver 3.
 - [x] **M1-10** Crear `truce.toml` con identidad, formatos, categoría y bundle
       (`category = "instrument"`, `midi_input = true`, `vst3_subcategory = "Synth"`).
-- [ ] **M1-11** Crear `build.rs` para la compilación de la UI Slint.
-- [ ] **M1-12** Crear el crate `dsp/` sin dependencias de framework.
+- [x] **M1-11** Crear `build.rs` para la compilación de la UI Slint.
+- [x] **M1-12** Crear el crate `dsp/` sin dependencias de framework.
 - [x] **M1-13** Crear el crate `kit/` sin dependencias de host ni UI.
-- [ ] **M1-14** Crear el crate raíz `src/` con `PluginLogic` mínimo.
-- [ ] **M1-15** Crear `ui/` con una ventana Slint vacía.
-- [ ] **M1-16** Compilar CLAP y VST3 con `cargo truce build --clap --vst3`.
-- [ ] **M1-17** Compilar el standalone de desarrollo.
-- [ ] **M1-18** Instalar y cargar los bundles en REAPER.
-- [ ] **M1-19** Crear `.github/workflows/ci.yml` (fmt, Clippy, tests, build).
-- [ ] **M1-20** Añadir chequeo de dependencias prohibidas en `dsp/`.
-- [ ] **M1-21** Documentar la versión exacta de TRUCE y Slint en el lockfile.
+- [x] **M1-14** Crear el crate raíz `src/` con `PluginLogic` mínimo (compila).
+- [x] **M1-15** Crear `ui/` con una ventana Slint vacía.
+- [x] **M1-16** Compilar CLAP y VST3. En local se usa
+      `cargo truce build --clap --vst3 --target-cpu v2` (CPU sin AVX2); los
+      bundles están en `target/bundles/` y tienen los símbolos `clap_entry` y
+      `GetPluginFactory`.
+- [x] **M1-17** Compilar el standalone de desarrollo
+      (`target/release/khodes-standalone`, 12 MB). No se distribuye.
+- [ ] **M1-18** Instalar y cargar los bundles en REAPER. Instalados en
+      `~/.clap` y `~/.vst3`; carga real verificada con el smoke host CLAP
+      (`tools/clap-smoke.sh`). REAPER no está instalado en este equipo: queda
+      pendiente la validación en DAW real.
+- [x] **M1-19** Crear `.github/workflows/ci.yml`; incluye el smoke host CLAP
+      (pendiente primera ejecución real).
+- [x] **M1-20** Añadir chequeo de dependencias prohibidas en `dsp/`
+      (`tools/check-dsp-boundary.sh`, pasa en local).
+- [x] **M1-21** Documentar la versión exacta de TRUCE y Slint en el lockfile
+      (`truce 6.3.0`, `truce-slint 6.3.0`, `slint 1.15.1`).
 - [ ] **M1-22** Primer commit verde con CI.
+- [x] **M1-23** Crear el smoke host CLAP (`tools/clap_smoke_test.c` y
+      `tools/clap-smoke.sh`), documentarlo en `TESTING.md` §8.1 y ejecutarlo en
+      CI. Pasa localmente sobre el bundle instalado.
 
 **Criterio de salida:** `cargo test --locked --workspace` pasa, CLAP y VST3 se
 instalan, y REAPER muestra **Khodes** como instrumento sin errores.
@@ -150,32 +163,36 @@ instalan, y REAPER muestra **Khodes** como instrumento sin errores.
 
 ### 5.1 Fundamentos DSP
 
-- [ ] **M2-01** Definir `dsp::Params` con los 19 valores y defaults.
-- [ ] **M2-02** Implementar conversión MIDI → frecuencia (`440 * 2^((n-69)/12)`).
-- [ ] **M2-03** Implementar PRNG determinista para ruido e IR.
-- [ ] **M2-04** Implementar flush de denormales y finitud de salida.
-- [ ] **M2-05** Definir `dsp::Event` con `sample_offset`.
+- [x] **M2-01** Definir `dsp::Params` con los 19 valores y defaults.
+- [x] **M2-02** Implementar conversión MIDI → frecuencia (`440 * 2^((n-69)/12)`).
+- [x] **M2-03** Implementar PRNG determinista (SplitMix64) para ruido e IR.
+- [x] **M2-04** Implementar flush de denormales y finitud de salida.
+- [x] **M2-05** Definir `dsp::Event` con `sample_offset`.
 
 ### 5.2 Osciladores y envelopes
 
-- [ ] **M2-06** Implementar oscilador seno con fase acumulada estable.
-- [ ] **M2-07** Implementar parcial de campana a `2f` con límite de Nyquist.
-- [ ] **M2-08** Implementar envelope ADSR con la semántica de `VOICE_SPEC` §3.3.
-- [ ] **M2-09** Implementar envelope de campana independiente (sin sustain).
-- [ ] **M2-10** Implementar key click (ruido HPF 3 kHz, ~30 ms).
-- [ ] **M2-11** Implementar ganancia de velocity con piso 0.3.
-- [ ] **M2-12** Implementar fine tune y pitch bend como multiplicadores.
+- [x] **M2-06** Implementar oscilador seno con fase acumulada estable.
+- [x] **M2-07** Implementar parcial de campana a `2f` con límite de Nyquist.
+- [x] **M2-08** Implementar envelope ADSR con la semántica de `VOICE_SPEC` §3.3,
+      incluida la cola de 50 ms de `rhodes.ts`.
+- [x] **M2-09** Implementar envelope de campana independiente (sin sustain).
+- [x] **M2-10** Implementar key click (ruido HPF 3 kHz, ~30 ms).
+- [x] **M2-11** Implementar ganancia de velocity con piso 0.3.
+- [x] **M2-12** Implementar fine tune y pitch bend como multiplicadores
+      suavizados.
 
 ### 5.3 Integración y pruebas
 
-- [ ] **M2-13** Procesar una sola voz por bloque con segmentación por offset.
-- [ ] **M2-14** Conectar parámetros del host a `dsp::Params`.
-- [ ] **M2-15** Test de afinación en MIDI 21, 60, 69 y 108.
-- [ ] **M2-16** Test de tiempos de attack, decay, sustain y release.
-- [ ] **M2-17** Test de key click a 0 y a 1.
-- [ ] **M2-18** Test de reproducibilidad con la misma semilla.
-- [ ] **M2-19** Render A/B contra Keys y guardar evidencia en `docs/`.
-- [ ] **M2-20** Actualizar `VOICE_SPEC` con cualquier desviación aceptada.
+- [x] **M2-13** Procesar una sola voz por bloque con segmentación por offset.
+- [x] **M2-14** Conectar parámetros del host a `dsp::Params`.
+- [x] **M2-15** Test de afinación en MIDI 21, 60, 69 y 108 (±1 cent).
+- [x] **M2-16** Test de tiempos de attack, decay, sustain y release.
+- [x] **M2-17** Test de key click a 0 y a 1.
+- [x] **M2-18** Test de reproducibilidad con la misma semilla.
+- [ ] **M2-19** Render A/B contra Keys y guardar evidencia en `docs/`. Requiere
+      render offline de Web Audio; no disponible en este entorno.
+- [x] **M2-20** Verificación contra `rhodes.ts`: sin desviaciones; la cola de
+      release de 50 ms ya estaba documentada en `VOICE_SPEC` §3.3.
 
 **Criterio de salida:** una nota suena reconociblemente como Keys; los tests
 pasan y la comparación A/B está documentada.
@@ -436,12 +453,41 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   `rust-toolchain.toml`.
 - Completado M1-05 a M1-07: Rust 1.92.0, `cargo-truce` 6.3.0 y
   `cargo truce doctor` sin fallos de configuración.
-- Completado M1-09, M1-10 y M1-13: workspace virtual, `truce.toml` validado con
-  1 plugin y crate `kit/` inicial. `cargo test --workspace` pasa.
-- Siguiente acción: crear `build.rs`, el crate raíz `src/` con `PluginLogic`
-  mínimo y `ui/`, luego compilar CLAP y VST3 (M1-11, M1-14 a M1-17).
-- Riesgo vigente: el primer build de TRUCE/Slint descargará y compilará
-  dependencias pesadas; vigilar disco (≈7 GB libres) y tiempo de compilación.
+- Completado M1-09 a M1-15 y M1-19 a M1-21: workspace, `truce.toml` validado,
+  crates `dsp/`, `kit/` y raíz, `build.rs`, editor Slint mínimo, CI, guard de
+  frontera DSP y lockfile con versiones fijadas.
+- `cargo check --workspace`, `cargo fmt --all -- --check` y
+  `cargo test --workspace` pasan (2 tests de parámetros y defaults).
+- Incidencia M1-16: `cargo truce build` usa `x86-64-v3` (AVX2) por defecto y el
+  CPU local no lo soporta; fallaba con `SIGILL` en build scripts. Resuelto con
+  `--target-cpu v2` y documentado en `DEV_SETUP` §5.1 y troubleshooting.
+- Completado M1-16: bundles CLAP y VST3 generados en `target/bundles/` con
+  `--target-cpu v2`. Símbolos `clap_entry` y `GetPluginFactory` presentes.
+- Completado M1-23 y parte de M1-18: bundles instalados en `~/.clap` y
+  `~/.vst3`; el smoke host CLAP carga el bundle, lee el descriptor
+  `dev.khodes.khodes v0.1.0-preview.1` y procesa 4 bloques de 256 frames sin
+  muestras no finitas. REAPER no está instalado: no se afirma compatibilidad.
+- Corrección de contrato: `src/params.rs` usaba mapeo lineal para Brightness;
+  ahora usa la curva logarítmica `500 * 40^n` y redondeo en los parámetros
+  discretos, según `PARAMETERS.md`. Tests ampliados.
+- Completado M1-17: `target/release/khodes-standalone` compila (40 min en esta
+  CPU; el perfil release incluye GUI y wgpu).
+- Completado M2-01 a M2-18 y M2-20: `dsp::Params`, `dsp::Event` con
+  `sample_offset`, PRNG SplitMix64, voz con dos senos, ADSR (con la cola de
+  50 ms de `rhodes.ts`), campana, key click, velocity y bend/tune; integrado en
+  el wrapper. `cargo test --workspace --release`: 16 tests, 0 fallos
+  (3 de parámetros + 13 de DSP), incluidos afinación ±1 cent en MIDI 21/60/69/108.
+- Pendiente M2-19: A/B render contra Keys; este entorno no dispone de render
+  offline de Web Audio.
+- Completado: `cargo fmt --all -- --check`, `cargo clippy --locked --workspace
+  --all-targets --all-features --release -- -D warnings` y
+  `cargo test --locked --workspace --release --features rt-paranoid`: 16 tests,
+  0 fallos. Clippy detectó 3 `field_reassign_with_default` en tests, corregidos
+  mediante inicialización con struct update.
+- Siguiente acción: commit de M1+M2, regenerar bundles con el código M2,
+  repetir el smoke host y ejecutar CI real (M1-22); después M3 — polifonía y
+  allocator.
+- Riesgo vigente: disco con ≈5,5 GB libres.
 
 ---
 
