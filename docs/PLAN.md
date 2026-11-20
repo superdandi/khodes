@@ -61,15 +61,16 @@ anuncia hasta que M9 valide los binarios.
 | M5 | Editor Slint | **Implementada y verificada** | Editor usable en 3 tamaños |
 | M6 | Estado y presets | **Implementada y verificada en REAPER** (falta Ableton Live) | Guardar/reabrir en 2 DAWs |
 | M7 | MIDI avanzado | **Implementada** (matriz REAPER parcial; falta Ableton Live) | Matriz MIDI verde |
-| M8 | Sitio y release | **Implementada y verificada en local** (M8-18/19/20 en curso) | Draft revisado y publicado |
+| M8 | Sitio y release | **Completada** (preview publicado y Pages desplegado) | Draft revisado y publicado |
 | M9 | Validación y estabilización | Pendiente | `v0.1.0` estable |
 
-**Bloqueo activo:** ninguno crítico. M0–M8 implementados; validadores locales
-y REAPER 7.78 comprobados con los bundles release de esta CPU. Pendientes de
-validación externa: CI con remote y validadores del tag (M8-18), publicación
-manual (M8-19), Pages real (M8-20), Ableton Live (M6-17/M7-15) y render A/B
-contra Keys (M2-19). Incidencia de rendimiento abierta: M4-22 (reverb a 0,7×
-tiempo real en la CPU local). No se afirma compatibilidad con DAWs no probados.
+**Bloqueo activo:** ninguno crítico. M0–M8 completados. CI y Release verdes
+sobre el tag `v0.1.0-preview.1`, preview publicado manualmente y sitio
+desplegado con los tres enlaces verificados. Pendientes de validación externa:
+Ableton Live (M6-17/M7-15) y render A/B contra Keys (M2-19). Incidencia de
+rendimiento abierta: M4-22 (reverb a 0,7× tiempo real en la CPU local).
+Revisión legal pendiente y binarios `unsigned`. No se afirma compatibilidad con
+DAWs no probados.
 
 ---
 
@@ -400,15 +401,18 @@ limitaciones están escritas.
   `release.yml`; sin ejecución real hasta que exista tag y aprobación.
 - [x] **M8-17** Generar `SHA256SUMS` y verificarlo con
   `tools/verify-release-assets.mjs`.
-- [ ] **M8-18** Verificar validadores sobre los bundles del tag. En local:
-  `clap-validator` 44 tests (42 passed, 2 skipped, 0 failures) y
-  `pluginval --strictness-level 10` SUCCESS sobre
-  `target/bundles/Khodes.vst3`, compilados con `--target-cpu v2`. Falta
-  repetirlo en CI sobre los bundles exactos del tag.
-- [ ] **M8-19** Publicar `v0.1.0-preview.1` manualmente (bloqueado: no hay
-  remote, no hay `APPROVED.txt` y CI solo crea drafts).
-- [ ] **M8-20** Confirmar que el sitio muestra versión y enlaces correctos
-  (bloqueado: depende de M8-19 y del despliegue real de Pages).
+- [x] **M8-18** Verificar validadores sobre los bundles del tag. `release.yml`
+  compiló desde `17975de` (commit etiquetado) y pasó `clap-validator` y
+  `pluginval --strictness-level 10` en Windows x64, macOS y Linux x64 antes de
+  empaquetar. En local: 44 tests (42 passed, 2 skipped, 0 failures) y `SUCCESS`.
+- [x] **M8-19** Publicar `v0.1.0-preview.1` manualmente con
+  `gh release edit --draft=false --prerelease`, tras revisar el draft y sus
+  assets. `publishedAt=2026-11-20T14:37:30Z`. CI sigue sin publicar.
+- [x] **M8-20** Confirmar que el sitio muestra versión y enlaces correctos.
+  `Pages` desplegó verde el 2026-11-20 con el fix del cliente de releases;
+  `https://superdandi.github.io/khodes/downloads/` sirve HTTP 200 con
+  `0.1.0-preview.1`, tres enlaces y `SHA256SUMS` coherente; los cuatro enlaces
+  responden 206 con rango parcial.
 
 **Criterio de salida:** un usuario puede descargar, instalar y tocar el preview
 siguiendo el sitio, sin binarios mezclados ni enlaces rotos.
@@ -724,9 +728,10 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
 - M8-15…M8-17: `VERSION.md`, `THIRDPARTY.json`, `INSTALL.txt` y
   `tools/verify-release-assets.mjs` creados con estado de revisión pendiente.
   El verificador acepta un fixture válido y rechaza un hash modificado.
-- M8-18, M8-19 y M8-20 siguen abiertos: no hay validadores instalados en local,
-  no hay remote (`git remote -v` vacío) y no se crea `APPROVED.txt` sin
-  aprobación humana. No se afirma release publicada ni sitio desplegado.
+- M8-18, M8-19 y M8-20 estaban abiertos en este punto: no hay validadores
+  instalados en local, no hay remote (`git remote -v` vacío) y no se crea
+  `APPROVED.txt` sin aprobación humana. Se cierran más adelante en este mismo
+  registro con evidencia real de CI, release y Pages.
 
 ### 2026-11-20 (continuación) — Aprobación, validadores y REAPER
 
@@ -747,8 +752,9 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   en `init`; licencia incluida en `vendor/truce-clap/LICENSE`.
 - Validadores: `clap-validator` terminó con 44 tests, 42 passed, 0 failed,
   0 warnings y 2 skipped. `pluginval --strictness-level 10
-  --validate target/bundles/Khodes.vst3` terminó con `SUCCESS`. M8-18 sigue
-  abierto hasta repetir la validación sobre los artefactos del tag en CI.
+  --validate target/bundles/Khodes.vst3` terminó con `SUCCESS`. M8-18 quedó
+  cerrado cuando `release.yml` repitió ambos validadores en CI sobre los bundles
+  compilados desde el commit etiquetado.
 - REAPER 7.78/linux-x86_64, bajo Xvfb `:99` y con dispositivo dummy
   (`[REAPER] linux_audio_mode=2` en configuración aislada): detectó
   `VST3i: Khodes (Khodes)` y `CLAPi: Khodes (Khodes)`. Ambos formatos cargan,
@@ -801,6 +807,28 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   `review.completed=false`), previews `unsigned`, M4-22 (reverb a 0,7×),
   M2-19 (A/B contra Keys) y matriz incompleta de DAWs. No se afirma
   compatibilidad con DAWs no validados.
+
+### 2026-11-20 (cierre de M8) — Release y sitio verificados en vivo
+
+- **M8-18:** `release.yml` (`44752196966`) terminó verde en Windows x64, macOS y
+  Linux x64. Cada job compiló desde el tag `v0.1.0-preview.1` (commit `17975de`)
+  y pasó `clap-validator` y `pluginval --strictness-level 10` antes de
+  empaquetar. El draft contenía 3 ZIP y 3 hashes; `verify-release-assets: OK` y
+  `sha256sum -c SHA256SUMS` coincidieron.
+- **M8-19:** se revisó el draft y se publicó con
+  `gh release edit v0.1.0-preview.1 --draft=false --prerelease`. Estado final:
+  `isDraft=false`, `isPrerelease=true`, `publishedAt=2026-11-20T14:37:30Z`, URL
+  `https://github.com/superdandi/khodes/releases/tag/v0.1.0-preview.1`. CI no
+  publicó: la publicación fue una acción manual autorizada (ADR 0007).
+- **M8-20:** tras corregir el cliente de releases, el workflow `Pages`
+  (`44757201200`) terminó verde y desplegó el sitio. Verificación HTTP en vivo:
+  `https://superdandi.github.io/khodes/downloads/` devuelve 200, muestra
+  `0.1.0-preview.1`, tres botones (Windows x64, macOS, Linux x64) y el bloque
+  `SHA256SUMS` idéntico al de la release. Los cuatro enlaces externos
+  (tres ZIP y `SHA256SUMS`) responden 206 con petición por rangos.
+- El fix de `releases.mjs` se commiteó en `1acd3ca` y se pusheó a `main`. El tag
+  sigue apuntando a `17975de`, que es el commit cuyos bundles se publicaron: no
+  se re etiquetó ni se reconstruyó la release después del fix del sitio.
 
 ---
 

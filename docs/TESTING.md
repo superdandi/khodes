@@ -304,8 +304,9 @@ pluginval --strictness-level 10 --validate "target/bundles/Khodes.vst3"
   tests, 42 passed, 0 failed, 0 warnings, 2 skipped; `pluginval` strictness 10
   devolvió `SUCCESS`.
 - Los validadores corren sobre los bundles exactos del tag, no sobre un build
-  local distinto: M8-18 queda abierto hasta que `release.yml` repita la
-  validación en CI sobre los artefactos publicados.
+  local distinto: `release.yml` (`44752196966`) los repitió en CI en las tres
+  plataformas desde el commit etiquetado antes de empaquetar los ZIP. M8-18
+  cerrado.
 
 ### 8.1 Smoke host CLAP
 
@@ -565,8 +566,10 @@ corregir el verificador y los posteriores fallaron por el token no propagado y
 la redirección del asset; las correcciones están documentadas en `PLAN.md` y
 `RELEASES.md`. La release `v0.1.0-preview.1` fue publicada manualmente el
 2026-11-20T14:37:30Z y sus assets pasaron `verify-release-assets` y
-`sha256sum -c`. Falta el despliegue verde de Pages con la release publicada para
-cerrar M8-20.
+`sha256sum -c`. El workflow `Pages` (`44757201200`) terminó verde y desplegó el
+sitio con la release publicada. Verificación en vivo: HTTP 200 en
+`/khodes/downloads/`, versión `0.1.0-preview.1`, tres enlaces con hashes
+coherentes y respuestas 206 en los cuatro enlaces externos. M8-20 cerrado.
 
 ---
 

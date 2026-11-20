@@ -299,6 +299,11 @@ Cubrir:
 - build offline, build GitHub simulado y build GitHub real con la release
   publicada.
 
+Verificación en vivo de esta entrega: `Pages` desplegó verde (`44757201200`) y
+`https://superdandi.github.io/khodes/downloads/` sirve HTTP 200 con
+`0.1.0-preview.1`, tres enlaces de descarga y `SHA256SUMS` coherente con la
+release. Los cuatro enlaces externos responden 206 con petición por rangos.
+
 ---
 
 ## 11. Relación con el sitio de referencia

@@ -202,7 +202,10 @@ gh run list --workflow pages.yml --limit 5
 ```
 
 Luego verificar en el navegador que la versión nueva aparece y que los enlaces
-de descarga funcionan.
+de descarga funcionan. En esta entrega el evento `release: published` disparó
+el workflow, pero falló por el cliente de releases; el fix se pusheó a `main` y
+el push disparó el despliegue verde `44757201200`. No hizo falta una ejecución
+manual adicional. La verificación en vivo está en §4.8.
 
 ### 4.7 Registro de la ejecución real de `v0.1.0-preview.1`
 
@@ -252,6 +255,17 @@ con `cancel-in-progress: false` en otras workflows, pero el grupo de CI permite
 cancelar el run anterior al llegar uno nuevo). El `CI` definitivo del commit
 publicado terminó verde con doctor, fmt, Clippy, tests, `rt-paranoid`, DSP
 boundary, bundles CLAP/VST3 y smoke host CLAP.
+
+### 4.8 Verificación final en vivo
+
+- Release: `isDraft=false`, `isPrerelease=true`,
+  `publishedAt=2026-11-20T14:37:30Z`.
+- Assets: 3 ZIP, 3 hashes, `verify-release-assets: OK`, `sha256sum -c` OK.
+- Sitio: `https://superdandi.github.io/khodes/downloads/` → HTTP 200, versión
+  `0.1.0-preview.1`, tres botones y `SHA256SUMS` idéntico al de la release.
+- Enlaces: los tres ZIP y `SHA256SUMS` responden 206 con petición por rangos.
+- El tag sigue en `17975de`, commit del que salieron los bundles publicados; el
+  fix del sitio (`1acd3ca`) no modificó la release.
 
 ---
 
