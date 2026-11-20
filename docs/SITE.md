@@ -288,6 +288,8 @@ Cubrir:
 - orden de versiones;
 - páginas generadas;
 - enlaces internos;
+- estado honesto sin release publicada (`id="no-release-title"`), sin botones
+  ni checksums inventados;
 - ausencia de tokens en el HTML;
 - build offline y build GitHub simulado.
 

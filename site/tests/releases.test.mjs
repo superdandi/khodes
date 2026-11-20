@@ -168,6 +168,16 @@ test('modo offline devuelve un estado honesto', async () => {
   assert.match(data.message, /No hay releases publicadas/);
 });
 
+test('GitHub sin releases elegibles devuelve un estado honesto', async () => {
+  const data = await loadReleaseData({
+    source: 'github',
+    repoSlug: REPO,
+    fetchImpl: githubFetch([{ ...release(), draft: true }]),
+  });
+  assert.equal(data.release, null);
+  assert.match(data.message, /No hay releases publicadas con assets elegibles/);
+});
+
 test('un error de API falla el build y no filtra el token', async () => {
   const failingFetch = async () => new Response('error', { status: 500 });
   await assert.rejects(

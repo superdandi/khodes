@@ -759,10 +759,18 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   en 0,0 s y 0,5 s. El valor CLAP se aplica tras el primer ciclo de audio,
   porque el wrapper aplica cambios de parámetro del host en `params.flush`.
   M6-17 y M7-15 quedan parcialmente cerrados: falta Ableton Live.
-- Sitio: `npm test` 10/10; build offline con el fallback WASI local y
+- Sitio: `npm test` 11/11; build offline con el fallback WASI local y
   `test:build` OK (16 archivos, base `/khodes`, releases offline); build GitHub
   simulado con `RELEASES_SOURCE=github` y mock de API y `test:build` OK
   (releases github). El fallback WASI no se commitea.
+- Incidencia real de Pages: el primer despliegue de `main` falló en
+  `test:build` porque no existía aún una release publicada y el verificador
+  esperaba botones de descarga. Decisión: un build `github` sin releases
+  elegibles es un estado válido y honesto; `loadReleaseData` sigue fallando si
+  la API falla, pero una respuesta vacía debe renderizar «Sin descargas
+  publicadas». Se corrigió `check-build.mjs` para aceptar ese estado y rejects
+  la mezcla de estado vacío con descargas o checksums; se añadió un test. El
+  sitio se reconstruirá con el evento `release: published`.
 - Limitaciones vigentes: revisión legal pendiente (`THIRDPARTY.json` con
   `review.completed=false`), previews `unsigned`, M4-22 (reverb a 0,7×),
   M2-19 (A/B contra Keys) y matriz incompleta de DAWs. No se afirma

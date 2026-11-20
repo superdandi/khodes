@@ -181,11 +181,17 @@ function checkReleases(filesByPath) {
   const anchors = [...html.matchAll(/<a\b[^>]*>/gi)].map((match) => parseAttributes(match[0]));
   const downloadAnchors = anchors.filter((attributes) => attributes['data-download-asset']);
 
+  const hasEmptyState = /id="no-release-title"/.test(html);
+
   if (SOURCE === 'offline') {
     if (downloadAnchors.length > 0) fail('El build offline no debe tener botones de descarga');
+    if (!hasEmptyState) fail('El build offline no muestra el estado honesto sin descargas');
   } else if (SOURCE === 'github') {
-    if (downloadAnchors.length === 0) {
-      fail('El build de GitHub no tiene botones de descarga con una release simulada');
+    if (downloadAnchors.length === 0 && !hasEmptyState) {
+      fail('El build de GitHub no tiene descargas ni estado honesto sin release');
+    }
+    if (downloadAnchors.length > 0 && hasEmptyState) {
+      fail('La página mezcla descargas con el estado de sin release');
     }
   }
 
@@ -215,8 +221,11 @@ function checkReleases(filesByPath) {
     }
   }
 
-  if (SOURCE === 'github' && checksums.size === 0) {
+  if (SOURCE === 'github' && downloadAnchors.length > 0 && checksums.size === 0) {
     fail('No se encontró el bloque de SHA256SUMS en downloads');
+  }
+  if (SOURCE === 'github' && downloadAnchors.length === 0 && checksumBlock.trim()) {
+    fail('El estado sin release no debe mostrar un bloque de SHA256SUMS');
   }
 }
 

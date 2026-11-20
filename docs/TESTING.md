@@ -540,10 +540,13 @@ con CPU moderna, basta `npm ci`.
 
 ### 13.5 Estado de estas verificaciones
 
-Ejecutadas en local: 10/10 tests del sitio, build offline, build GitHub
-simulado, `test:build` en ambos modos y verificador de assets con caso positivo
-y negativo. No ejecutadas: validadores sobre el tag, workflow de Pages en GitHub
-y publicación manual de la release (M8-18…M8-20).
+Ejecutadas en local: 11/11 tests del sitio, build offline, build GitHub
+simulado, build GitHub sin releases publicadas, `test:build` en esos tres modos
+y verificador de assets con caso positivo y negativo. En GitHub, el primer
+workflow de Pages falló antes de corregir el verificador; la corrección está
+documentada en `PLAN.md`. No ejecutadas al cierre de esta edición: validadores
+sobre el tag, workflow de Pages con release publicada y publicación manual
+(M8-18…M8-20).
 
 ---
 

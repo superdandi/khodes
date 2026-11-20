@@ -64,7 +64,7 @@ site/
 │   └── styles/
 │       └── global.css
 └── tests/
-    └── releases.test.mjs         10 tests del cliente de releases
+    └── releases.test.mjs         11 tests del cliente de releases
 ```
 
 Las páginas y el flujo de releases son contrato de producto. Las capturas
@@ -138,7 +138,7 @@ Con dominio propio, crear `public/CNAME` con el dominio exacto.
 | `npm run dev` | Sincroniza capturas y abre el servidor local |
 | `npm run build` | Sincroniza capturas y genera `site/dist/` |
 | `npm run preview` | Sirve `dist/` localmente |
-| `npm test` | 10 tests del cliente de releases |
+| `npm test` | 11 tests del cliente de releases |
 | `npm run test:build` | Verifica el HTML generado |
 
 Flujo recomendado antes de un PR:
@@ -310,6 +310,8 @@ Verifica sobre `dist/`:
 - que no hay `GITHUB_TOKEN` ni secretos en el HTML;
 - que los enlaces internos resuelven;
 - que los botones apuntan a URLs de GitHub Releases del repo correcto;
+- que, si no hay release publicada, se muestra el estado honesto
+  `id="no-release-title"` y no se inventan botones ni checksums;
 - que los checksums visibles corresponden al asset;
 - que no se renderiza HTML crudo de las notas;
 - que `robots.txt` y `sitemap.xml` existen si se prometen.
@@ -368,7 +370,7 @@ solo verá la release cuando una persona la publique. Ver
 |---|---|---|
 | La home da 404 | `base` no coincide con la URL | Ajustar `base` y reconstruir |
 | Los assets dan 404 | Rutas absolutas sin `base` | Usar `import.meta.env.BASE_URL` |
-| No aparecen descargas | Release en draft o sin assets | Publicar la release; revisar nombres |
+| No aparecen descargas | Sin release publicada o sin assets elegibles | Esperado: el sitio muestra «Sin descargas publicadas»; publicar la release y reconstruir |
 | Aparece una versión vieja | Caché o build sin release event | Ejecutar `pages.yml` a mano |
 | El build falla por API | Token ausente o rate limit | Revisar `GITHUB_TOKEN` y logs |
 | Se muestran notas con HTML | Escape desactivado | Escapar como texto plano |
