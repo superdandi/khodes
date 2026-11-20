@@ -1,6 +1,8 @@
 # Arquitectura — Khodes
 
-**Estado:** diseño objetivo. El repositorio aún no contiene el código del plugin.
+**Estado:** arquitectura implementada hasta M3. `dsp/src/voice.rs` y
+`dsp/src/allocator.rs` ya existen; `dsp/src/bus.rs` y el códec de `kit/` siguen
+pendientes. El detalle de avance vive en [`PLAN.md`](PLAN.md).
 
 Khodes sigue el modelo de ingeniería de
 [Buffer Uppercut](REFERENCE_BUFFER_UPPERCUT.md): un núcleo DSP puro, un wrapper

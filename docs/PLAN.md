@@ -54,9 +54,9 @@ anuncia hasta que M9 valide los binarios.
 | Fase | Nombre | Estado | Gate |
 |---|---|---|---|
 | M0 | Documentación y contratos | **Completada** (salvo revisión humana) | Documentos aceptados |
-| M1 | Fundaciones y esqueleto | **En curso** | Plugin silencioso carga en REAPER |
-| M2 | Voz monofónica | Pendiente | MIDI 60 afinado y con carácter |
-| M3 | Polifonía y allocator | Pendiente | 32 notas sin fallos |
+| M1 | Fundaciones y esqueleto | **Implementada** (falta DAW real y CI) | Plugin silencioso carga en REAPER |
+| M2 | Voz monofónica | **Implementada** (falta A/B) | MIDI 60 afinado y con carácter |
+| M3 | Polifonía y allocator | **Implementada y verificada** | 32 notas sin fallos |
 | M4 | Bus global y efectos | Pendiente | Corpus v1 congelado |
 | M5 | Editor Slint | Pendiente | Editor usable en 3 tamaños |
 | M6 | Estado y presets | Pendiente | Guardar/reabrir en 2 DAWs |
@@ -64,8 +64,10 @@ anuncia hasta que M9 valide los binarios.
 | M8 | Sitio y release | Pendiente | Draft revisado y publicado |
 | M9 | Validación y estabilización | Pendiente | `v0.1.0` estable |
 
-**Bloqueo activo:** ninguno crítico. El toolchain ya está instalado y validado; la
-siguiente tarea es el crate raíz con `PluginLogic` (M1-14).
+**Bloqueo activo:** ninguno crítico. Toolchain validado, M1–M3 implementados.
+Pendientes de validación externa: carga en DAW real (M1-18), CI con remote
+(M1-22) y render A/B contra Keys (M2-19). Siguiente tarea de código: M4 — bus
+global y efectos.
 
 ---
 
@@ -146,7 +148,9 @@ que carga en un DAW.
       (`tools/check-dsp-boundary.sh`, pasa en local).
 - [x] **M1-21** Documentar la versión exacta de TRUCE y Slint en el lockfile
       (`truce 6.3.0`, `truce-slint 6.3.0`, `slint 1.15.1`).
-- [ ] **M1-22** Primer commit verde con CI.
+- [ ] **M1-22** Primer commit verde con CI. Commit local creado (`bf983e3`),
+      pero el repositorio no tiene `remote`; la primera ejecución real de CI
+      queda pendiente hasta configurar GitHub.
 - [x] **M1-23** Crear el smoke host CLAP (`tools/clap_smoke_test.c` y
       `tools/clap-smoke.sh`), documentarlo en `TESTING.md` §8.1 y ejecutarlo en
       CI. Pasa localmente sobre el bundle instalado.
@@ -204,23 +208,28 @@ pasan y la comparación A/B está documentada.
 **Objetivo:** acordes y pasajes rápidos estables, sin clics ni voces zombie.
 **Gate:** 32 notas simultáneas sin samples no finitos ni fugas.
 
-- [ ] **M3-01** Definir `VoiceState` y el pool de 1–32 voces.
-- [ ] **M3-02** Implementar asignación de voz libre.
-- [ ] **M3-03** Implementar robo de la voz en release más antigua.
-- [ ] **M3-04** Implementar robo de la voz sostenida más antigua.
-- [ ] **M3-05** Implementar fade de 3–5 ms en el robo.
-- [ ] **M3-06** Implementar `note_id` para ignorar note-off tardíos.
-- [ ] **M3-07** Implementar retrigger de nota repetida.
-- [ ] **M3-08** Implementar note-off por nota y canal.
-- [ ] **M3-09** Implementar sustain CC64 por canal.
-- [ ] **M3-10** Implementar All Notes Off y All Sound Off.
-- [ ] **M3-11** Implementar `polyphony` como parámetro discreto.
-- [ ] **M3-12** Test de 1, 8, 16 y 32 voces.
-- [ ] **M3-13** Test de robo determinista con secuencia fija.
-- [ ] **M3-14** Test de nota repetida sin note-off.
-- [ ] **M3-15** Test de note-off sin note-on previo.
-- [ ] **M3-16** Test de 1000 note-on sin note-off.
-- [ ] **M3-17** Medir CPU de 16 voces a 48 kHz y registrar baseline.
+- [x] **M3-01** Definir `SlotState` y el pool fijo de 1–32 voces (`allocator.rs`).
+- [x] **M3-02** Implementar asignación de voz libre.
+- [x] **M3-03** Implementar robo de la voz en release más antigua.
+- [x] **M3-04** Implementar robo de la voz sostenida más antigua.
+- [x] **M3-05** Implementar fade de 4 ms en el robo mediante una cola acotada
+      de 32 `StealTail`, para no cortar la voz robada.
+- [x] **M3-06** Implementar `note_id` en `src/midi.rs`: TRUCE no expone el ID
+      del host, así que el wrapper asigna IDs secuenciales por (canal, nota).
+- [x] **M3-07** Implementar retrigger de nota repetida.
+- [x] **M3-08** Implementar note-off por nota y canal.
+- [x] **M3-09** Implementar sustain CC64 por canal.
+- [x] **M3-10** Implementar All Notes Off (CC123), All Sound Off (CC120) y Reset
+      All Controllers (CC121).
+- [x] **M3-11** Implementar `polyphony` como parámetro discreto (`dsp::Params`).
+- [x] **M3-12** Test de 1, 8, 16 y 32 voces.
+- [x] **M3-13** Test de robo determinista con secuencia fija.
+- [x] **M3-14** Test de nota repetida sin note-off.
+- [x] **M3-15** Test de note-off sin note-on previo.
+- [x] **M3-16** Test de 1000 note-on sin note-off.
+- [x] **M3-17** Medir CPU de 16 voces a 48 kHz y registrar baseline: 6,0×
+      tiempo real, 0,8846 ms por bloque de 256 frames, 1.659 s de CPU para
+      10.00 s de audio. Registrado en [`TESTING.md`](TESTING.md) §11.1.
 
 **Criterio de salida:** la polifonía es estable y determinista; el baseline de
 CPU queda registrado en [TESTING](TESTING.md).
@@ -484,10 +493,35 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   `cargo test --locked --workspace --release --features rt-paranoid`: 16 tests,
   0 fallos. Clippy detectó 3 `field_reassign_with_default` en tests, corregidos
   mediante inicialización con struct update.
-- Siguiente acción: commit de M1+M2, regenerar bundles con el código M2,
-  repetir el smoke host y ejecutar CI real (M1-22); después M3 — polifonía y
-  allocator.
-- Riesgo vigente: disco con ≈5,5 GB libres.
+- Completado: commit local `bf983e3` de M1+M2 (20 archivos). M1-22 sigue
+  pendiente: no hay remote configurado, así que no se afirma CI verde.
+- Regenerados bundles CLAP/VST3 con el código M2 y smoke host CLAP verde
+  (descriptor `dev.khodes.khodes`, 4 bloques de 256 frames, salida finita).
+  Incidencia: el standalone de esa tanda no compiló porque los cambios de M3 se
+  introdujeron mientras rustc lo compilaba; se regenerará al cerrar M3.
+- M3-01 a M3-16 implementados: `dsp/allocator.rs` con pool fijo de 32 voces,
+  robo determinista, cola de desvanecimiento de 4 ms, sustain por canal,
+  IDs internos de nota en `src/midi.rs` y eventos CC120/121/123. El motor
+  comparte un único buffer de multiplicadores de frecuencia suavizados, así que
+  el coste de bend no crece con la polifonía.
+- Incidencia M3 detectada por tests: `find_free()` usaba los 32 slots aunque la
+  polifonía configurada fuera menor, y `Engine` no propagaba `params.polyphony` al
+  allocator. 3 tests fallaban (robo, note-off tardío y acorde de 16 notas).
+  Corregido limitando la búsqueda a `polyphony` slots, moviendo a la cola de
+  desvanecimiento los slots que quedan fuera al reducir, y propagando el
+  parámetro en cada bloque.
+- Completado M3: `cargo fmt --all -- --check`, `cargo check --workspace
+  --all-targets` y `cargo test --workspace --release`: 22 tests, 0 fallos.
+- M3-17: baseline de CPU registrado en [`TESTING.md`](TESTING.md) §11.1: 16
+  voces a 48 kHz, bloques de 256 frames, 6,0× tiempo real y 0,8846 ms por
+  bloque (1.659 s de CPU para 10.00 s de audio).
+- Completado M3: verificación final verde en `/tmp/khodes-m3-final.log` (`EXIT:0`):
+  `fmt`, `clippy -D warnings`, 22 tests con `rt-paranoid`, bundles CLAP/VST3
+  regenerados, smoke host CLAP correcto (`dev.khodes.khodes`, 4 bloques de 256
+  frames, salida finita) y standalone compilado. Bundles instalados en `~/.clap`
+  y `~/.vst3`; el smoke también pasa sobre el bundle instalado.
+- Siguiente acción: commit de M3 y M4 — bus global y efectos.
+- Riesgo vigente: disco con ≈4,5 GB libres.
 
 ---
 

@@ -95,6 +95,11 @@ verificada a ±1 cent en MIDI 21, 60, 69 y 108.
 
 ### M3 — Polifonía y allocator
 
+**Estado:** implementado y verificado (M3-01 a M3-17). Pool fijo de 32 voces,
+robo determinista, fade de robo de 4 ms, sustain por canal e IDs internos de
+nota. 22 tests verdes; baseline de CPU 6,0× tiempo real con 16 voces a 48 kHz
+(véase [`TESTING.md`](TESTING.md) §11.1). Detalle en [`PLAN.md`](PLAN.md).
+
 Entregables:
 
 - Pool de 1–32 voces.

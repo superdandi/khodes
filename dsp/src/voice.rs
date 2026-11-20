@@ -205,7 +205,9 @@ impl Env {
 }
 
 /// Estado de una voz. Toda la memoria se reserva antes del primer render.
-#[derive(Clone, Debug)]
+///
+/// `Copy` permite al allocator mover voices a la cola de robo sin asignar.
+#[derive(Clone, Copy, Debug)]
 pub struct Voice {
     active: bool,
     note: u8,
@@ -328,17 +330,15 @@ impl Voice {
         }
     }
 
-    /// Renderiza `out` con la frecuencia compartida `freq_mult`.
+    /// Renderiza `out` con los multiplicadores de frecuencia precalculados.
     ///
-    /// `freq_mult` se suaviza hacia `target_mult` con `smooth_coeff` para que el
-    /// pitch bend y el fine tune no produzcan saltos.
-    #[allow(clippy::too_many_arguments)]
+    /// El suavizado de pitch bend y fine tune se calcula una sola vez por
+    /// muestra en el motor, de modo que todas las voces compartan el mismo
+    /// `mults`. Así el coste no crece con la polifonía.
     pub fn render(
         &mut self,
         out: &mut [f64],
-        freq_mult: &mut f64,
-        target_mult: f64,
-        smooth_coeff: f64,
+        mults: &[f64],
         params: &Params,
         sample_rate: f64,
         noise: &[f64],
@@ -354,17 +354,17 @@ impl Voice {
         let phase_inc = fundamental_hz / sr;
         let bell_phase_inc = bell_hz / sr;
 
-        for sample in out.iter_mut() {
-            *freq_mult += smooth_coeff * (target_mult - *freq_mult);
+        for (i, sample) in out.iter_mut().enumerate() {
+            let mult = mults.get(i).copied().unwrap_or(1.0);
 
             let g1 = self.amp.tick();
             let g2 = self.bell.tick();
 
             let fundamental = (std::f64::consts::TAU * self.phase).sin();
-            self.phase = (self.phase + phase_inc * *freq_mult).rem_euclid(1.0);
+            self.phase = (self.phase + phase_inc * mult).rem_euclid(1.0);
 
             let bell = (std::f64::consts::TAU * self.bell_phase).sin() * bell_atten;
-            self.bell_phase = (self.bell_phase + bell_phase_inc * *freq_mult).rem_euclid(1.0);
+            self.bell_phase = (self.bell_phase + bell_phase_inc * mult).rem_euclid(1.0);
 
             let mut click = 0.0;
             if self.click_pos < self.click_len && !noise.is_empty() {
@@ -378,7 +378,9 @@ impl Voice {
             *sample = flush_denormal(fundamental * g1 + bell * g2 + click);
         }
 
-        if self.amp.is_done() && self.bell.is_done() && self.click_pos >= self.click_len {
+        let click_finished =
+            noise.is_empty() || self.click_len == 0 || self.click_pos >= self.click_len;
+        if self.amp.is_done() && self.bell.is_done() && click_finished {
             self.active = false;
         }
     }
@@ -467,16 +469,16 @@ mod tests {
         voice.note_on(60, 1.0, &params, sr);
         let mut scratch = [0.0; 1];
         for _ in 0..479 {
-            voice.render(&mut scratch, &mut 1.0, 1.0, 0.0, &params, sr, &[]);
+            voice.render(&mut scratch, &[1.0], &params, sr, &[]);
         }
         assert!((voice.envelope_level() - params.volume).abs() < 0.002);
         for _ in 0..2400 {
-            voice.render(&mut scratch, &mut 1.0, 1.0, 0.0, &params, sr, &[]);
+            voice.render(&mut scratch, &[1.0], &params, sr, &[]);
         }
         assert!((voice.envelope_level() - params.volume * 0.5).abs() < 0.002);
         voice.note_off(60);
         for _ in 0..4320 {
-            voice.render(&mut scratch, &mut 1.0, 1.0, 0.0, &params, sr, &[]);
+            voice.render(&mut scratch, &[1.0], &params, sr, &[]);
         }
         assert_eq!(voice.envelope_level(), 0.0);
     }

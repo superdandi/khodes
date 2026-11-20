@@ -3,13 +3,15 @@
 //! Este crate no conoce TRUCE, Slint, el host ni el sistema de archivos.
 //! Recibe eventos y parámetros ya traducidos y produce audio.
 //!
-//! Ver `docs/ARCHITECTURE.md` y `docs/VOICE_SPEC.md`.
+//! Ver `docs/ARCHITECTURE.md`, `docs/VOICE_SPEC.md` y `docs/MIDI.md`.
 
 #![forbid(unsafe_code)]
 
+pub mod allocator;
 pub mod params;
 pub mod voice;
 
+pub use allocator::{Allocator, MAX_VOICES, SlotState};
 pub use params::Params;
 pub use voice::{Voice, flush_denormal, midi_to_hz};
 
@@ -33,12 +35,34 @@ pub struct Event {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum EventBody {
-    NoteOn { note: u8, velocity: f64 },
-    NoteOff { note: u8 },
-    PitchBend { semitones: f64 },
-    Sustain { enabled: bool },
-    ModWheel { amount: f64 },
+    NoteOn {
+        channel: u8,
+        note: u8,
+        velocity: f64,
+        /// ID interno asignado por el wrapper; `-1` si el host no lo expone.
+        note_id: i32,
+    },
+    NoteOff {
+        channel: u8,
+        note: u8,
+        note_id: i32,
+    },
+    PitchBend {
+        semitones: f64,
+    },
+    Sustain {
+        channel: u8,
+        enabled: bool,
+    },
+    ModWheel {
+        amount: f64,
+    },
+    /// CC123: libera las voces con release normal.
     AllNotesOff,
+    /// CC120: corta las voces con fade corto.
+    AllSoundOff,
+    /// CC121: centra bend, desactiva sustain y limpia modulación.
+    ResetControllers,
 }
 
 impl Event {
@@ -63,16 +87,17 @@ pub fn next_random(state: &mut u64) -> f64 {
     bits * 2.0 - 1.0
 }
 
-/// Motor monofónico de M2. En M3 se sustituye la voz por un allocator.
+/// Motor polifónico. Toda la memoria se reserva en `prepare`.
 pub struct Engine {
     sample_rate: f64,
     noise: Vec<f64>,
-    voice: Voice,
+    mix: Vec<f64>,
+    scratch: Vec<f64>,
+    freq_buf: Vec<f64>,
+    allocator: Allocator,
     params: Params,
     bend_semitones: f64,
     mod_wheel: f64,
-    sustain: bool,
-    sustain_pending: bool,
     freq_mult: f64,
     smooth_coeff: f64,
 }
@@ -82,12 +107,13 @@ impl Default for Engine {
         Self {
             sample_rate: 48_000.0,
             noise: Vec::new(),
-            voice: Voice::default(),
+            mix: Vec::new(),
+            scratch: Vec::new(),
+            freq_buf: Vec::new(),
+            allocator: Allocator::default(),
             params: Params::default(),
             bend_semitones: 0.0,
             mod_wheel: 0.0,
-            sustain: false,
-            sustain_pending: false,
             freq_mult: 1.0,
             smooth_coeff: 0.0,
         }
@@ -95,9 +121,8 @@ impl Default for Engine {
 }
 
 impl Engine {
-    /// Reserva el ruido del click y calcula coeficientes. Puede asignar.
+    /// Reserva buffers y coeficientes. Puede asignar; no se llama en `process`.
     pub fn prepare(&mut self, sample_rate: f64, max_block_size: usize) {
-        let _ = max_block_size;
         let sr = sample_rate.max(1.0);
         self.sample_rate = sr;
         let len = (voice::CLICK_SECONDS * sr).ceil() as usize;
@@ -106,23 +131,25 @@ impl Engine {
         for sample in &mut self.noise {
             *sample = next_random(&mut seed);
         }
+        self.mix.resize(max_block_size.max(1), 0.0);
+        self.scratch.resize(max_block_size.max(1), 0.0);
+        self.freq_buf.resize(max_block_size.max(1), 1.0);
         self.smooth_coeff = 1.0 - (-1.0 / (SMOOTHING_SECONDS * sr)).exp();
+        self.allocator.prepare(sr);
         self.reset();
     }
 
     /// Reinicia todo el estado transitorio sin liberar memoria.
     pub fn reset(&mut self) {
-        self.voice.reset();
+        self.allocator.reset();
         self.bend_semitones = 0.0;
         self.mod_wheel = 0.0;
-        self.sustain = false;
-        self.sustain_pending = false;
         self.freq_mult = 1.0;
     }
 
     #[cfg(test)]
-    pub const fn voice(&self) -> &Voice {
-        &self.voice
+    pub fn active_voices(&self) -> usize {
+        self.allocator.active_count()
     }
 
     #[cfg(test)]
@@ -132,38 +159,42 @@ impl Engine {
 
     fn apply_event(&mut self, body: &EventBody) {
         match *body {
-            EventBody::NoteOn { note, velocity } => {
-                self.sustain_pending = false;
-                self.voice
-                    .note_on(note, velocity, &self.params, self.sample_rate);
-            }
-            EventBody::NoteOff { note } => {
-                if self.sustain {
-                    self.sustain_pending = true;
-                } else {
-                    self.voice.note_off(note);
-                }
-            }
-            EventBody::PitchBend { semitones } => {
-                self.bend_semitones = semitones.clamp(
-                    -(f64::from(self.params.bend_range)),
-                    f64::from(self.params.bend_range),
+            EventBody::NoteOn {
+                channel,
+                note,
+                velocity,
+                note_id,
+            } => {
+                self.allocator.note_on(
+                    channel,
+                    note,
+                    velocity,
+                    note_id,
+                    &self.params,
+                    self.sample_rate,
                 );
             }
-            EventBody::Sustain { enabled } => {
-                self.sustain = enabled;
-                if !enabled && self.sustain_pending {
-                    self.sustain_pending = false;
-                    let note = self.voice.note();
-                    self.voice.note_off(note);
-                }
+            EventBody::NoteOff {
+                channel,
+                note,
+                note_id,
+            } => self.allocator.note_off(channel, note, note_id),
+            EventBody::PitchBend { semitones } => {
+                let range = f64::from(self.params.bend_range);
+                self.bend_semitones = semitones.clamp(-range, range);
+            }
+            EventBody::Sustain { channel, enabled } => {
+                self.allocator.set_sustain(channel, enabled);
             }
             EventBody::ModWheel { amount } => {
                 self.mod_wheel = amount.clamp(0.0, 1.0);
             }
-            EventBody::AllNotesOff => {
-                self.sustain_pending = false;
-                self.voice.kill();
+            EventBody::AllNotesOff => self.allocator.all_notes_off(),
+            EventBody::AllSoundOff => self.allocator.all_sound_off(),
+            EventBody::ResetControllers => {
+                self.allocator.reset_controllers();
+                self.bend_semitones = 0.0;
+                self.mod_wheel = 0.0;
             }
         }
     }
@@ -171,19 +202,26 @@ impl Engine {
     /// Procesa un bloque. No asigna memoria ni redimensiona buffers.
     pub fn process(&mut self, output: &mut [f64], events: &[Event], params: &Params) {
         self.params = *params;
+        self.allocator.set_polyphony(params.polyphony);
+        let frames = output.len().min(self.mix.len()).min(self.freq_buf.len());
+        if frames == 0 {
+            return;
+        }
         let target_mult = 2.0_f64.powf(self.bend_semitones / 12.0);
-        let sr = self.sample_rate;
-        let len = output.len();
+        for mult in self.freq_buf[..frames].iter_mut() {
+            self.freq_mult += self.smooth_coeff * (target_mult - self.freq_mult);
+            *mult = self.freq_mult;
+        }
 
         let mut pos = 0;
-        while pos < len {
+        while pos < frames {
             for event in events {
                 if event.sample_offset == pos {
                     self.apply_event(&event.body);
                 }
             }
 
-            let mut end = len;
+            let mut end = frames;
             for event in events {
                 let offset = event.sample_offset;
                 if offset > pos && offset < end {
@@ -191,27 +229,24 @@ impl Engine {
                 }
             }
 
-            self.voice.render(
-                &mut output[pos..end],
-                &mut self.freq_mult,
-                target_mult,
-                self.smooth_coeff,
+            self.allocator.render_segment(
+                &mut self.mix[pos..end],
+                &self.freq_buf[pos..end],
+                &mut self.scratch[..end],
                 &self.params,
-                sr,
+                self.sample_rate,
                 &self.noise,
             );
             pos = end;
         }
+
+        output[..frames].copy_from_slice(&self.mix[..frames]);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn stereo_block() -> [f64; 1024] {
-        [0.0; 1024]
-    }
 
     fn render_note(note: u8, params: &Params, frames: usize) -> Vec<f64> {
         let mut engine = Engine::default();
@@ -222,8 +257,10 @@ mod tests {
             &[Event::new(
                 0,
                 EventBody::NoteOn {
+                    channel: 0,
                     note,
                     velocity: 1.0,
+                    note_id: -1,
                 },
             )],
             params,
@@ -246,7 +283,6 @@ mod tests {
     fn output_is_finite_for_all_default_parameters() {
         let out = render_note(60, &Params::default(), 1024);
         assert!(out.iter().all(|x| x.is_finite()));
-        let _ = stereo_block();
     }
 
     #[test]
@@ -291,8 +327,10 @@ mod tests {
             &[Event::new(
                 256,
                 EventBody::NoteOn {
+                    channel: 0,
                     note: 60,
                     velocity: 1.0,
+                    note_id: -1,
                 },
             )],
             &Params::default(),
@@ -312,20 +350,29 @@ mod tests {
             &[Event::new(
                 0,
                 EventBody::NoteOn {
+                    channel: 0,
                     note: 60,
                     velocity: 1.0,
+                    note_id: -1,
                 },
             )],
             &params,
         );
-        assert!(engine.voice().is_active());
+        assert_eq!(engine.active_voices(), 1);
         engine.process(
             &mut out,
-            &[Event::new(0, EventBody::NoteOff { note: 60 })],
+            &[Event::new(
+                0,
+                EventBody::NoteOff {
+                    channel: 0,
+                    note: 60,
+                    note_id: -1,
+                },
+            )],
             &params,
         );
         engine.reset();
-        assert!(!engine.voice().is_active());
+        assert_eq!(engine.active_voices(), 0);
     }
 
     #[test]
@@ -344,5 +391,33 @@ mod tests {
         );
         assert_eq!(engine.mod_wheel(), 1.0);
         assert!(out.iter().all(|x| x.is_finite()));
+    }
+
+    #[test]
+    fn engine_plays_chords_and_honours_polyphony() {
+        let mut engine = Engine::default();
+        engine.prepare(48_000.0, 1024);
+        let params = Params {
+            polyphony: 8,
+            ..Params::default()
+        };
+        let events: Vec<Event> = (60..76)
+            .map(|note| {
+                Event::new(
+                    0,
+                    EventBody::NoteOn {
+                        channel: 0,
+                        note,
+                        velocity: 1.0,
+                        note_id: i32::from(note),
+                    },
+                )
+            })
+            .collect();
+        let mut out = [0.0; 1024];
+        engine.process(&mut out, &events, &params);
+        assert_eq!(engine.active_voices(), 8);
+        assert!(out.iter().all(|x| x.is_finite()));
+        assert!(out.iter().any(|x| *x != 0.0));
     }
 }

@@ -346,8 +346,12 @@ Revisar visualmente antes de actualizar un baseline.
 ## 11. Pruebas de rendimiento
 
 ```sh
-cargo run --locked -p khodes-dsp --release --example benchmark
+cargo run --locked -p khodes-dsp --release --example cpu_bench
 ```
+
+El ejemplo `cpu_bench` mide el render puro del DSP (sin wrapper ni host), con
+16 voces sostenidas a 48 kHz y bloques de 256 frames. Es una referencia
+reproducible entre cambios, no una medida de consumo en DAW.
 
 Medir:
 
@@ -355,7 +359,7 @@ Medir:
 - 44.1, 48, 96 y 192 kHz;
 - bloques de 64, 128, 256 y 512;
 - reverb on/off;
-- chorus on/off.
+- chorus on/off (éstos al cerrar M4).
 
 Registrar:
 
@@ -366,6 +370,24 @@ Registrar:
 
 Criterio: una regresión repetible > 10 % en el callback de audio bloquea la
 aceptación salvo decisión explícita.
+
+### 11.1 Baseline M3 (2026-11-20)
+
+| Parámetro | Valor |
+|---|---|
+| Voces | 16 sostenidas |
+| Sample rate | 48 kHz |
+| Block size | 256 frames |
+| Audio renderizado | 10.00 s |
+| Tiempo de CPU | 1.659 s |
+| Factor tiempo real | 6,0× |
+| ms por bloque | 0,8846 ms |
+| CPU | Intel i3 M380 (sin AVX2; build `--target-cpu v2`) |
+| Rust | 1.92.0 |
+| Estado del bus | sin FX (M3) |
+
+Este número es el punto de partida. No es comparable contra un bus con reverb y
+chorus activos; esa medición se añadirá al cerrar M4 (M4-21).
 
 ---
 
