@@ -5,16 +5,16 @@ sección de voz del sintetizador **Keys** de **Studio Suite**, empaquetado como
 plugin de audio **CLAP + VST3** para usarse en cualquier DAW sobre macOS,
 Windows y Linux.
 
-> **Estado del proyecto:** fases M1, M2 y M3 implementadas. El workspace compila,
+> **Estado del proyecto:** fases M1–M4 implementadas; M4 cerrado con corpus
+> `contract/v1/` congelado (13 fixtures) y verificado. El workspace compila,
 > existen bundles CLAP y VST3, el standalone de desarrollo compila y el smoke
-> host CLAP verifica la carga del plugin. El DSP incluye la voz de Keys (dos
-> osciladores, ADSR, campana, key click, velocity y bend) y un allocator
-> polifónico de hasta 32 voces con robo determinista, sustain por canal e IDs
-> internos de nota: 22 tests verdes y un baseline de 6,0× tiempo real con 16
-> voces a 48 kHz. Aún no están implementados el bus de efectos, los presets ni
-> el sitio. La validación en DAW real, la primera ejecución de CI con remote y
-> el A/B de audio contra Keys están pendientes. El avance tarea por tarea se
-> marca en [`docs/PLAN.md`](docs/PLAN.md).
+> host CLAP verifica la carga. El DSP incluye la voz de Keys, un allocator
+> polifónico de hasta 32 voces y el bus de efectos (drive, brillo, EQ, chorus,
+> tremolo, reverb convolucional y master estéreo): 34 tests verdes. Aún no
+> están implementados el editor, los presets ni el sitio. Pendientes: optimizar
+> el consumo de CPU de la reverb cuando se activa (M4-22), validar en DAW real,
+> ejecutar CI con remote y hacer el A/B contra Keys. El avance tarea por tarea
+> se marca en [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Origen y referencias
 

@@ -121,15 +121,15 @@ fine tune 0 y polyphony suficiente. Ese es el caso de referencia A/B.
 
 ## Implementación
 
-- [ ] Implementar `dsp/src/voice.rs` con osciladores, envelopes y click.
-- [ ] Implementar `dsp/src/bus.rs` en el orden documentado.
-- [ ] Implementar PRNG determinista para click e IR.
-- [ ] Implementar allocator con stealing y fade de 3–5 ms.
-- [ ] Implementar segmentación por `sample_offset`.
-- [ ] Implementar smoothing de parámetros.
-- [ ] Congelar `contract/v1/` con el primer render aceptado.
+- [x] Implementar `dsp/src/voice.rs` con osciladores, envelopes y click.
+- [x] Implementar `dsp/src/bus.rs` en el orden documentado.
+- [x] Implementar PRNG determinista para click e IR.
+- [x] Implementar allocator con stealing y fade de 3–5 ms.
+- [x] Implementar segmentación por `sample_offset`.
+- [x] Implementar smoothing de parámetros.
+- [ ] Congelar `contract/v1/` con el primer render aceptado (M4-19/M4-20).
 - [ ] Documentar el procedimiento A/B de [VOICE_SPEC](../VOICE_SPEC.md) §8.
-- [ ] Verificar afinación ±1 cent y tiempos de envelope ±5 %.
+- [x] Verificar afinación ±1 cent y tiempos de envelope ±5 %.
 
 ---
 

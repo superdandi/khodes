@@ -6,5 +6,6 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-# Intencionalmente vacío: el núcleo DSP no conoce TRUCE, Slint, el host ni el
-# sistema de archivos. Ver docs/adr/0003-dsp-ui-separation.md.
+# FFT pura en Rust para la convolución de la reverb. No conoce TRUCE, Slint,
+# el host ni el sistema de archivos. Ver docs/adr/0003-dsp-ui-separation.md.
+rustfft = "6"

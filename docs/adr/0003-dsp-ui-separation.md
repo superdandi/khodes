@@ -93,13 +93,14 @@ Reglas duras:
 
 ## Implementación
 
-- [ ] Crear `dsp/` como crate independiente sin dependencias de TRUCE/Slint.
-- [ ] Definir `dsp::Event` y `dsp::Params` como tipos puros.
-- [ ] Implementar el snapshot de telemetría con atomics y secuencia.
-- [ ] Prohibir en `dsp/` imports de `truce`, `slint`, `std::fs`, `std::net`.
-- [ ] Añadir un test o check de CI que verifique esas prohibiciones.
-- [ ] Ejecutar `rt-paranoid` en CI como gate.
-- [ ] Documentar la API en `dsp/src/lib.rs`.
+- [x] Crear `dsp/` como crate independiente sin dependencias de TRUCE/Slint.
+- [x] Definir `dsp::Event` y `dsp::Params` como tipos puros.
+- [ ] Implementar el snapshot de telemetría con atomics y secuencia (M5).
+- [x] Prohibir en `dsp/` imports de `truce`, `slint`, `std::fs`, `std::net`.
+- [x] Añadir un check local (`tools/check-dsp-boundary.sh`) que verifique esas
+      prohibiciones; pendiente de ejecutarlo en CI cuando haya remote.
+- [x] Ejecutar `rt-paranoid` en las verificaciones locales como gate.
+- [x] Documentar la API en `dsp/src/lib.rs`.
 
 Sugerencia de verificación automática:
 

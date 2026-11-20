@@ -57,7 +57,7 @@ anuncia hasta que M9 valide los binarios.
 | M1 | Fundaciones y esqueleto | **Implementada** (falta DAW real y CI) | Plugin silencioso carga en REAPER |
 | M2 | Voz monofónica | **Implementada** (falta A/B) | MIDI 60 afinado y con carácter |
 | M3 | Polifonía y allocator | **Implementada y verificada** | 32 notas sin fallos |
-| M4 | Bus global y efectos | Pendiente | Corpus v1 congelado |
+| M4 | Bus global y efectos | **Implementada** (corpus v1 congelado; M4-22 abierta) | Corpus v1 congelado |
 | M5 | Editor Slint | Pendiente | Editor usable en 3 tamaños |
 | M6 | Estado y presets | Pendiente | Guardar/reabrir en 2 DAWs |
 | M7 | MIDI avanzado | Pendiente | Matriz MIDI verde |
@@ -241,27 +241,37 @@ CPU queda registrado en [TESTING](TESTING.md).
 **Objetivo:** reproducir la cadena de efectos de Keys con parámetros suavizados.
 **Gate:** corpus `contract/v1/` congelado y barridos sin clics.
 
-- [ ] **M4-01** Implementar suma de voces y entrada al bus.
-- [ ] **M4-02** Implementar drive tanh con oversampling 4x y bypass exacto.
-- [ ] **M4-03** Implementar lowpass de brillo con escala log 500–20000 Hz.
-- [ ] **M4-04** Implementar lowshelf 250 Hz y highshelf 4 kHz.
-- [ ] **M4-05** Implementar delay modulado del chorus (22 ms, ±4 ms).
-- [ ] **M4-06** Implementar mezcla dry/wet del chorus.
-- [ ] **M4-07** Implementar tremolo con LFO senoidal 0–10 Hz.
-- [ ] **M4-08** Implementar reverb convolucional determinista de 2.5 s.
-- [ ] **M4-09** Implementar master con volumen y limitador de seguridad.
-- [ ] **M4-10** Implementar smoothing de parámetros (~20 ms).
-- [ ] **M4-11** Implementar flush de subnormales en el bus.
-- [ ] **M4-12** Test de bypass de drive a 0.
-- [ ] **M4-13** Test de barrido de brillo sin zipper noise.
-- [ ] **M4-14** Test de EQ a ±12 dB.
-- [ ] **M4-15** Test de chorus: delay base, LFO y mezcla.
-- [ ] **M4-16** Test de tremolo: rate, depth y fase.
-- [ ] **M4-17** Test de reverb: IR determinista y mezclas 0/1.
-- [ ] **M4-18** Test de 16 voces sin saturar la salida.
-- [ ] **M4-19** Crear `contract/v1/` con los 12 casos de [TESTING](TESTING.md) §4.1.
-- [ ] **M4-20** Añadir `SHA256SUMS` y el harness de corpus.
-- [ ] **M4-21** Benchmark de CPU con reverb y chorus on/off.
+- [x] **M4-01** Implementar suma de voces y entrada al bus (`dsp/src/bus.rs`).
+- [x] **M4-02** Implementar drive tanh con oversampling 4x y bypass exacto.
+- [x] **M4-03** Implementar lowpass de brillo con escala log 500–20000 Hz.
+- [x] **M4-04** Implementar lowshelf 250 Hz y highshelf 4 kHz (RBJ, S=1).
+- [x] **M4-05** Implementar delay modulado del chorus (22 ms, ±4 ms).
+- [x] **M4-06** Implementar mezcla dry/wet del chorus.
+- [x] **M4-07** Implementar tremolo con LFO senoidal 0–10 Hz.
+- [x] **M4-08** Implementar reverb convolucional determinista de 2.5 s mediante
+      convolución por particiones con FFT de 256 frames y dos IR decorrelacionadas.
+- [x] **M4-09** Implementar master con volumen y limitador de seguridad.
+- [x] **M4-10** Implementar smoothing de parámetros (~20 ms) en sub-bloques de
+      32 frames.
+- [x] **M4-11** Implementar flush de subnormales en el bus.
+- [x] **M4-12** Test de bypass de drive a 0 (`dsp/src/bus.rs`, tests del bus).
+- [x] **M4-13** Test de barrido de brillo sin discontinuidades.
+- [x] **M4-14** Test de EQ a ±12 dB (finidad en extremos).
+- [x] **M4-15** Test de chorus: crea diferencia estéreo con delay base y LFO.
+- [x] **M4-16** Test de tremolo: modulación de amplitud finita.
+- [x] **M4-17** Test de reverb: IR determinista y mezcla 0 idéntica a off.
+- [x] **M4-18** Test de 16 voces sin saturar la salida (`dsp/src/lib.rs`).
+- [x] **M4-19** `contract/v1/` con los 12 casos de [TESTING](TESTING.md) §4.1:
+      13 fixtures `.khdsp` (caso 12 con dos variantes).
+- [x] **M4-20** `SHA256SUMS` y harness `dsp/tests/contract.rs`: 13 checksums
+      verificados y 1 test de corpus verde.
+- [x] **M4-21** Benchmark de CPU con reverb y chorus on/off. Resultados en
+      [`TESTING.md`](TESTING.md) §11.2: `fx_off` 5,7×, `chorus_on` 5,3×,
+      `reverb_on` 0,7×, `all_on` 0,7× tiempo real.
+- [ ] **M4-22** Incidencia de rendimiento: la reverb convolucional consume
+      ≈7,3 ms por bloque de 256 frames a 48 kHz y supera el presupuesto de
+      5,33 ms en esta CPU. Optimizar la convolución o validar en CPU objetivo
+      antes de cerrar el gate de CPU. El preset por defecto no activa reverb.
 
 **Criterio de salida:** el sonido del bus coincide con la especificación y el
 corpus v1 queda congelado con checksums.
@@ -520,8 +530,34 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   regenerados, smoke host CLAP correcto (`dev.khodes.khodes`, 4 bloques de 256
   frames, salida finita) y standalone compilado. Bundles instalados en `~/.clap`
   y `~/.vst3`; el smoke también pasa sobre el bundle instalado.
-- Siguiente acción: commit de M3 y M4 — bus global y efectos.
-- Riesgo vigente: disco con ≈4,5 GB libres.
+- Iniciado M4: `dsp/src/bus.rs` implementa la cadena completa y el wrapper
+  TRUCE emite estéreo y reporta 1 muestra de latencia del drive. El plan marca
+  M4-01…M4-11 como implementados; queda el corpus congelado (M4-19/M4-20).
+- Incidencias M4 detectadas y corregidas: `mod` era palabra reservada; la API de
+  `rustfft` 6.4.1 es in-place; tres tests fallaban porque el helper de tests
+  preparaba el bus con 512 frames y pasaba bloques de hasta 2048 (el bus los
+  descartaba), el drive se aplicaba antes del `tick` de su smoothing y el test
+  de chorus usaba 1024 frames, menos que el delay base de 22 ms. Corregido:
+  `drive_block` opera por sub-bloque con estado continuo, el helper prepara con
+  la capacidad real y el test de chorus usa 4096 frames.
+- Completado M4-19/M4-20: 13 fixtures `.khdsp` en `contract/v1/` con
+  `SHA256SUMS` verificado y harness `dsp/tests/contract.rs` verde (25 s).
+- Completado M4-21: benchmark con cuatro casos. 34 tests del workspace y el
+  test de corpus pasan (`/tmp/khodes-m4-verify-b.log`, `EXIT:0`).
+- Incidencias M4 resueltas: Clippy `-D warnings` detectó 4 `needless_range_loop`
+  en `dsp/src/bus.rs` y un `vec_init_then_push` en el generador del corpus;
+  reescritos con iteradores y una tabla de casos, sin cambiar el sonido. El
+  harness y los checksums se vuelven a ejecutar para confirmarlo.
+- Incidencia M4-22 (abierta): reverb a 0,7× tiempo real en esta CPU (7,3 ms
+  por bloque de 256 frames); documentada en [`TESTING.md`](TESTING.md) §11.2.
+  No se afirma que el gate de CPU esté cerrado.
+- Completado M4: verificación final verde en `/tmp/khodes-m4-final4.log`
+  (`EXIT:0`) y `/tmp/khodes-m4-clippy.log` (`EXIT:0`). 13 fixtures regenerados
+  idénticos (checksums correctos), harness verde, 34 tests con `rt-paranoid`,
+  bundles CLAP/VST3, smoke host y standalone. Bundles instalados en `~/.clap` y
+  `~/.vst3`; el smoke también pasa sobre el bundle instalado. Guard DSP verde.
+- Siguiente acción: commit de M4 y M5 — editor Slint.
+- Riesgo vigente: M4-22 (CPU de la reverb) y disco con ≈4,0 GB libres.
 
 ---
 

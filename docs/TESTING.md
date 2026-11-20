@@ -166,13 +166,24 @@ Reglas:
 - Un cambio de sonido intencional crea `v2/`; no se reescribe `v1/`.
 - Cada fixture tiene entrada, parámetros, sample rate, block size y salida
   esperada.
+- `.khdsp` es texto UTF-8 determinista; los valores `f64` se guardan como 16
+  dígitos hexadecimales de sus bits, así que el round-trip es exacto y el
+  SHA256 estable entre plataformas IEEE 754.
 - Tolerancia: absoluta + relativa `1e-7` en `f64`.
-- El harness debe verificar checksums y ejecutar el corpus actual.
+- El harness (`dsp/tests/contract.rs`) verifica el render actual contra los
+  fixtures congelados. Nunca los reescribe.
 
-Comando previsto:
+Generación (solo la primera vez, o al crear `v2/`):
 
 ```sh
-(cd contract/v1 && shasum -a 256 -c SHA256SUMS)
+cargo run --locked -p khodes-dsp --release --example gen_contract
+(cd contract/v1 && sha256sum *.khdsp > SHA256SUMS)
+```
+
+Verificación:
+
+```sh
+(cd contract/v1 && sha256sum -c SHA256SUMS)
 cargo test -p khodes-dsp --test contract
 ```
 
@@ -387,7 +398,27 @@ aceptación salvo decisión explícita.
 | Estado del bus | sin FX (M3) |
 
 Este número es el punto de partida. No es comparable contra un bus con reverb y
-chorus activos; esa medición se añadirá al cerrar M4 (M4-21).
+chorus activos; la medición de M4 está en §11.2.
+
+### 11.2 Baseline M4 (2026-11-20)
+
+Misma máquina, Rust y condiciones que §11.1 (`--target-cpu v2`), 16 voces a
+48 kHz, bloques de 256 frames, 10.00 s de audio por caso. Medida única (no
+mediana de 5):
+
+| Caso | Tiempo de CPU | Factor tiempo real | ms/bloque |
+|---|---:|---:|---:|
+| `fx_off` | 1.758 s | 5,7× | 0,9376 |
+| `chorus_on` (0,5) | 1.887 s | 5,3× | 1,0065 |
+| `reverb_on` (0,5) | 13.659 s | 0,7× | 7,2850 |
+| `all_on` | 14.084 s | 0,7× | 7,5115 |
+
+**Incidencia de rendimiento:** la reverb convolucional de 2,5 s no cabe en el
+presupuesto de un bloque de 256 frames a 48 kHz en esta CPU (5,33 ms): consume
+≈7,3 ms. El preset por defecto tiene `reverb = 0`, por lo que el funcionamiento
+normal se mantiene en 5,7× tiempo real. Antes de publicar un release hay que
+optimizar la convolución o verificar el consumo en una CPU objetivo moderna;
+esta medición no se presenta como resultado aceptado. Registrado como M4-22.
 
 ---
 

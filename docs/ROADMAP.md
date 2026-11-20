@@ -114,16 +114,22 @@ verdes.
 
 ### M4 — Bus global
 
+**Estado:** implementado y verificado; corpus v1 congelado. Queda abierta la
+incidencia de CPU de la reverb (M4-22): 0,7× tiempo real en la CPU local cuando
+se activa; el preset por defecto no la activa. Ver
+[`TESTING.md`](TESTING.md) §11.2.
+
 Entregables:
 
-- Drive, brightness, EQ.
-- Chorus, tremolo.
-- Reverb determinista.
-- Master y limitador de seguridad.
-- Smoothing de parámetros.
+- Drive, brightness, EQ (implementados en `dsp/src/bus.rs`).
+- Chorus, tremolo (implementados).
+- Reverb convolucional determinista de 2,5 s (implementada).
+- Master y limitador de seguridad (implementados).
+- Smoothing de parámetros en sub-bloques de 32 frames (implementado).
+- Salida estéreo en el wrapper y 13 fixtures en `contract/v1/` con `SHA256SUMS`.
 
 Criterio de salida: barridos sin clics; CPU dentro de presupuesto; corpus v1
-congelado.
+congelado y verificado por el harness.
 
 ---
 

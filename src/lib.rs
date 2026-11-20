@@ -21,7 +21,8 @@ pub use params::KhodesParams;
 #[derive(Default)]
 pub struct Khodes {
     engine: Engine,
-    output: Vec<f64>,
+    left: Vec<f64>,
+    right: Vec<f64>,
     mapper: MidiMapper,
 }
 
@@ -37,8 +38,19 @@ impl PluginLogic for Khodes {
         state
             .engine
             .prepare(config.sample_rate, config.max_block_size);
-        state.output.resize(config.max_block_size, 0.0);
+        state.left.resize(config.max_block_size, 0.0);
+        state.right.resize(config.max_block_size, 0.0);
         state.mapper.reset();
+    }
+
+    /// El oversampling 4x del drive introduce 1 muestra de latencia.
+    fn latency(state: &Self::DspState) -> u32 {
+        state.engine.reported_latency_samples() as u32
+    }
+
+    /// La cola de la reverb convolucional dura 2,5 s.
+    fn tail(_: &Self::DspState) -> u32 {
+        (2.5 * 48_000.0) as u32
     }
 
     fn process(
@@ -50,7 +62,7 @@ impl PluginLogic for Khodes {
     ) -> ProcessStatus {
         let frames = buffer.num_samples();
         let channels = buffer.channels();
-        if frames == 0 || channels == 0 || frames > state.output.len() {
+        if frames == 0 || channels == 0 || frames > state.left.len() {
             return ProcessStatus::Normal;
         }
 
@@ -60,16 +72,20 @@ impl PluginLogic for Khodes {
             .mapper
             .translate(events, &mut translated, frames, dsp_params.bend_range);
 
-        state.engine.process(
-            &mut state.output[..frames],
+        state.engine.process_stereo(
+            &mut state.left[..frames],
+            &mut state.right[..frames],
             &translated[..count],
             &dsp_params,
         );
 
         for channel in 0..channels {
             let (_, output) = buffer.io(channel);
-            // M2/M3 suman mono; M4 hará estéreo en el bus global.
-            output.copy_from_slice(&state.output[..frames]);
+            if channel == 0 {
+                output.copy_from_slice(&state.left[..frames]);
+            } else {
+                output.copy_from_slice(&state.right[..frames]);
+            }
         }
 
         ProcessStatus::Normal

@@ -8,10 +8,13 @@
 #![forbid(unsafe_code)]
 
 pub mod allocator;
+pub mod bus;
+pub mod contract_format;
 pub mod params;
 pub mod voice;
 
 pub use allocator::{Allocator, MAX_VOICES, SlotState};
+pub use bus::Bus;
 pub use params::Params;
 pub use voice::{Voice, flush_denormal, midi_to_hz};
 
@@ -94,7 +97,10 @@ pub struct Engine {
     mix: Vec<f64>,
     scratch: Vec<f64>,
     freq_buf: Vec<f64>,
+    stereo_l: Vec<f64>,
+    stereo_r: Vec<f64>,
     allocator: Allocator,
+    bus: Bus,
     params: Params,
     bend_semitones: f64,
     mod_wheel: f64,
@@ -110,7 +116,10 @@ impl Default for Engine {
             mix: Vec::new(),
             scratch: Vec::new(),
             freq_buf: Vec::new(),
+            stereo_l: Vec::new(),
+            stereo_r: Vec::new(),
             allocator: Allocator::default(),
+            bus: Bus::default(),
             params: Params::default(),
             bend_semitones: 0.0,
             mod_wheel: 0.0,
@@ -134,14 +143,18 @@ impl Engine {
         self.mix.resize(max_block_size.max(1), 0.0);
         self.scratch.resize(max_block_size.max(1), 0.0);
         self.freq_buf.resize(max_block_size.max(1), 1.0);
+        self.stereo_l.resize(max_block_size.max(1), 0.0);
+        self.stereo_r.resize(max_block_size.max(1), 0.0);
         self.smooth_coeff = 1.0 - (-1.0 / (SMOOTHING_SECONDS * sr)).exp();
         self.allocator.prepare(sr);
+        self.bus.prepare(sr, max_block_size);
         self.reset();
     }
 
     /// Reinicia todo el estado transitorio sin liberar memoria.
     pub fn reset(&mut self) {
         self.allocator.reset();
+        self.bus.reset();
         self.bend_semitones = 0.0;
         self.mod_wheel = 0.0;
         self.freq_mult = 1.0;
@@ -199,11 +212,22 @@ impl Engine {
         }
     }
 
-    /// Procesa un bloque. No asigna memoria ni redimensiona buffers.
-    pub fn process(&mut self, output: &mut [f64], events: &[Event], params: &Params) {
+    /// Procesa un bloque y devuelve la salida del bus estéreo.
+    /// No asigna memoria ni redimensiona buffers.
+    pub fn process_stereo(
+        &mut self,
+        left: &mut [f64],
+        right: &mut [f64],
+        events: &[Event],
+        params: &Params,
+    ) {
         self.params = *params;
         self.allocator.set_polyphony(params.polyphony);
-        let frames = output.len().min(self.mix.len()).min(self.freq_buf.len());
+        let frames = left
+            .len()
+            .min(right.len())
+            .min(self.mix.len())
+            .min(self.freq_buf.len());
         if frames == 0 {
             return;
         }
@@ -240,7 +264,35 @@ impl Engine {
             pos = end;
         }
 
-        output[..frames].copy_from_slice(&self.mix[..frames]);
+        // El motor suma las voces en mono; el bus genera el estéreo.
+        left[..frames].copy_from_slice(&self.mix[..frames]);
+        right[..frames].copy_from_slice(&self.mix[..frames]);
+        self.bus.process(left, right, params, self.mod_wheel);
+    }
+
+    /// Versión mono de `process_stereo`, para tests y benchmark. Devuelve el
+    /// canal izquierdo; el derecho queda en `self.stereo_r`.
+    pub fn process(&mut self, output: &mut [f64], events: &[Event], params: &Params) {
+        let frames = output
+            .len()
+            .min(self.stereo_l.len())
+            .min(self.stereo_r.len());
+        if frames == 0 {
+            return;
+        }
+        // `take` mueve los buffers sin asignar: evita prestar `self` dos veces.
+        let mut left = std::mem::take(&mut self.stereo_l);
+        let mut right = std::mem::take(&mut self.stereo_r);
+        self.process_stereo(&mut left[..frames], &mut right[..frames], events, params);
+        output[..frames].copy_from_slice(&left[..frames]);
+        self.stereo_l = left;
+        self.stereo_r = right;
+    }
+
+    /// Latencia reportable al host, en muestras (oversampling del drive).
+    #[must_use]
+    pub fn reported_latency_samples(&self) -> usize {
+        self.bus.reported_latency_samples()
     }
 }
 
@@ -283,6 +335,48 @@ mod tests {
     fn output_is_finite_for_all_default_parameters() {
         let out = render_note(60, &Params::default(), 1024);
         assert!(out.iter().all(|x| x.is_finite()));
+    }
+
+    #[test]
+    fn sixteen_voices_do_not_clip_the_stereo_output() {
+        let params = Params::default();
+        let mut engine = Engine::default();
+        engine.prepare(48_000.0, 256);
+        let events: Vec<Event> = (48..64)
+            .map(|note| {
+                Event::new(
+                    0,
+                    EventBody::NoteOn {
+                        channel: 0,
+                        note,
+                        velocity: 1.0,
+                        note_id: i32::from(note),
+                    },
+                )
+            })
+            .collect();
+
+        let frames = 4096;
+        let mut left = vec![0.0; frames];
+        let mut right = vec![0.0; frames];
+        let mut pos = 0;
+        while pos < frames {
+            let end = (pos + 256).min(frames);
+            let block_events: Vec<Event> = if pos == 0 { events.clone() } else { Vec::new() };
+            engine.process_stereo(
+                &mut left[pos..end],
+                &mut right[pos..end],
+                &block_events,
+                &params,
+            );
+            pos = end;
+        }
+
+        let mut all = left.iter().chain(right.iter());
+        assert!(all.clone().all(|x| x.is_finite()));
+        assert!(all.all(|x| x.abs() <= 1.0));
+        let peak = left.iter().fold(0.0_f64, |m, x| m.max(x.abs()));
+        assert!(peak > 0.05, "peak was {peak}");
     }
 
     #[test]
