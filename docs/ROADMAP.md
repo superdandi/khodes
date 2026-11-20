@@ -135,16 +135,20 @@ congelado y verificado por el harness.
 
 ### M5 — Editor Slint
 
+**Estado:** implementado y verificado.
+
 Entregables:
 
-- Panel Voz/Env/Amp/FX.
-- Knobs, faders, sliders, readouts.
-- Medidor de voces/salida.
-- Estados hover/active/disabled.
-- Baselines de screenshots.
+- Panel Voz/Env/Amp/FX/GLOBAL (`ui/main.slint`).
+- Knobs, faders, sliders y readouts formateados en Rust (`src/params.rs`).
+- Medidor de voces/salida y LEDs de nota/sustain vía slots atómicos.
+- Estados hover/active/focus/disabled y navegación por Tab.
+- Combo de presets de fábrica (tabla provisional en `src/editor.rs`).
+- Cuatro baselines en `screenshots/`, generados con `cargo run --example screenshots`.
 
-Criterio de salida: editor usable en default, mínimo y wide; accesibilidad
-básica; sin diálogos de archivo propios.
+Criterio de salida: editor usable en default (1120×700), mínimo (920×620) y
+wide (1440×760); accesibilidad básica; sin diálogos de archivo propios. Detalles
+en [`UI_SPEC.md`](UI_SPEC.md) §10 y §13.
 
 ---
 

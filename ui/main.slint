@@ -1,21 +1,796 @@
-// Editor mínimo de Khodes.
-// En M5 se implementa el HUD completo descrito en docs/UI_SPEC.md.
+// Editor de Khodes según docs/UI_SPEC.md.
+//
+// La UI solo muestra estado y emite intenciones: los valores de parámetros
+// llegan desde Rust (in-out properties) y cada cambio dispara un callback que
+// el editor traduce a gestos de automatización del host. La telemetría (picos,
+// voces, nota, sustain) se publica desde `process` en slots atómicos.
+
+import { ComboBox } from "std-widgets.slint";
+
+// Paleta (UI_SPEC §2).
+global Palette {
+    in property <color> bg: #0a0a14;
+    in property <color> panel: #12121f;
+    in property <color> border: #2a2a4a;
+    in property <color> text: #c8c8e0;
+    in property <color> text-dim: #8888aa;
+    in property <color> voice: #ffdd44;
+    in property <color> env: #00dd88;
+    in property <color> amp: #ff00ff;
+    in property <color> fx: #00ffff;
+    in property <color> global: #7aa2ff;
+    in property <color> alert: #ff4455;
+    in property <color> ok: #00ff66;
+    in property <color> well: #08080f;
+}
+
+component Led inherits Rectangle {
+    in property <color> accent: Palette.ok;
+    in property <bool> lit: false;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: root.lit ? root.accent : #232338;
+    border-color: root.accent;
+    border-width: 1px;
+}
+
+component Readout inherits Rectangle {
+    in property <string> text;
+    in property <color> accent: Palette.border;
+    height: 20px;
+    background: Palette.well;
+    border-color: root.accent;
+    border-width: 1px;
+    border-radius: 3px;
+    Text {
+        text: root.text;
+        color: Palette.text;
+        font-family: "monospace";
+        font-size: 11px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component Section inherits Rectangle {
+    in property <string> title;
+    in property <color> accent: Palette.border;
+    accessible-role: AccessibleRole.groupbox;
+    accessible-label: root.title;
+    background: Palette.panel;
+    border-color: Palette.border;
+    border-width: 1px;
+    border-radius: 5px;
+
+    VerticalLayout {
+        padding: 7px;
+        spacing: 5px;
+        HorizontalLayout {
+            height: 16px;
+            spacing: 6px;
+            Led { accent: root.accent; lit: true; width: 6px; height: 6px; }
+            Text {
+                text: root.title;
+                color: root.accent;
+                font-size: 12px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 1px;
+                background: @linear-gradient(90deg, root.accent, transparent);
+            }
+        }
+        @children
+    }
+}
+
+// Fader vertical con interacción absoluta: el thumb salta al punto tocado y
+// sigue al puntero. Doble clic restaura el default; flechas ajustan un paso.
+component Fader inherits Rectangle {
+    in property <float> value: 0;
+    in property <float> default-value: 0;
+    in property <string> label;
+    in property <string> text;
+    in property <color> accent: Palette.border;
+    in property <bool> enabled: true;
+    opacity: root.enabled ? 1.0 : 0.35;
+    accessible-role: AccessibleRole.slider;
+    accessible-label: root.label;
+    accessible-description: "Fader vertical. Doble clic restaura el valor por defecto.";
+    accessible-value: root.text;
+    accessible-value-minimum: 0;
+    accessible-value-maximum: 1;
+    accessible-value-step: 0.01;
+    callback changed(float);
+    callback begin();
+    callback end();
+
+    property <float> norm: clamp(root.value, 0.0, 1.0);
+    property <float> start-value: 0;
+    property <length> start-y: 0px;
+    property <bool> dragging: false;
+    property <length> track-h: 92px;
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.UpArrow || event.text == Key.RightArrow) {
+                root.changed(clamp(root.value + 0.01, 0.0, 1.0));
+                return accept;
+            } else if (event.text == Key.DownArrow || event.text == Key.LeftArrow) {
+                root.changed(clamp(root.value - 0.01, 0.0, 1.0));
+                return accept;
+            } else if (event.text == Key.Home) {
+                root.changed(0.0);
+                return accept;
+            } else if (event.text == Key.End) {
+                root.changed(1.0);
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.label;
+                color: Palette.text-dim;
+                font-size: 10px;
+                horizontal-alignment: center;
+            }
+            Rectangle {
+                width: 32px;
+                height: root.track-h;
+                background: Palette.well;
+                border-color: !root.enabled ? Palette.border :
+                    (fs.has-focus ? root.accent :
+                    (ta.has-hover ? root.accent.mix(Palette.border, 0.5) : Palette.border));
+                border-width: fs.has-focus ? 2px : 1px;
+                Rectangle {
+                    x: 3px;
+                    y: root.track-h - 3px - (root.track-h - 6px) * root.norm;
+                    width: parent.width - 6px;
+                    height: (root.track-h - 6px) * root.norm;
+                    background: @linear-gradient(0deg, root.accent, Palette.border);
+                    opacity: root.dragging ? 0.9 : 0.55;
+                }
+                Rectangle {
+                    x: 1px;
+                    y: root.track-h - 9px - (root.track-h - 18px) * root.norm;
+                    width: parent.width - 2px;
+                    height: 7px;
+                    border-radius: 2px;
+                    background: root.accent;
+                    opacity: root.dragging ? 1.0 : 0.8;
+                }
+            }
+            Readout { text: root.text; accent: root.accent; width: 62px; }
+        }
+
+        ta := TouchArea {
+            enabled: root.enabled;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down) {
+                    fs.focus();
+                    root.start-y = ta.mouse-y;
+                    root.start-value = root.norm;
+                    root.dragging = true;
+                    root.begin();
+                    root.changed(clamp(root.norm, 0.0, 1.0));
+                } else if (event.kind == PointerEventKind.move && root.dragging) {
+                    root.changed(clamp(root.start-value + (root.start-y - ta.mouse-y) / root.track-h, 0.0, 1.0));
+                } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                    if (root.dragging) {
+                        root.dragging = false;
+                        root.end();
+                    }
+                }
+            }
+            double-clicked => { root.changed(root.default-value); }
+        }
+    }
+}
+
+// Knob circular con arco de valor de -135° a +135° y arrastre vertical.
+component Knob inherits Rectangle {
+    in property <float> value: 0;
+    in property <float> default-value: 0;
+    in property <string> label;
+    in property <string> text;
+    in property <color> accent: Palette.border;
+    in property <bool> enabled: true;
+    opacity: root.enabled ? 1.0 : 0.35;
+    accessible-role: AccessibleRole.slider;
+    accessible-label: root.label;
+    accessible-description: "Perilla. Doble clic restaura el valor por defecto.";
+    accessible-value: root.text;
+    accessible-value-minimum: 0;
+    accessible-value-maximum: 1;
+    accessible-value-step: 0.01;
+    callback changed(float);
+    callback begin();
+    callback end();
+
+    property <float> norm: clamp(root.value, 0.0, 1.0);
+    property <angle> theta: -135deg + max(root.norm, 0.001) * 270deg;
+    property <float> start-value: 0;
+    property <length> start-y: 0px;
+    property <bool> dragging: false;
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.UpArrow || event.text == Key.RightArrow) {
+                root.changed(clamp(root.value + 0.01, 0.0, 1.0));
+                return accept;
+            } else if (event.text == Key.DownArrow || event.text == Key.LeftArrow) {
+                root.changed(clamp(root.value - 0.01, 0.0, 1.0));
+                return accept;
+            } else if (event.text == Key.Home) {
+                root.changed(0.0);
+                return accept;
+            } else if (event.text == Key.End) {
+                root.changed(1.0);
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.label;
+                color: Palette.text-dim;
+                font-size: 10px;
+                horizontal-alignment: center;
+            }
+            Rectangle {
+                width: 52px;
+                height: 52px;
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    x: 6px;
+                    y: 6px;
+                    border-radius: 20px;
+                    background: @radial-gradient(circle, #1e1e30, #0d0d18);
+                    border-color: !root.enabled ? Palette.border :
+                        (fs.has-focus ? root.accent :
+                        (ta.has-hover ? root.accent.mix(Palette.border, 0.5) : Palette.border));
+                    border-width: fs.has-focus ? 2px : 1px;
+                }
+                Path {
+                    x: 0;
+                    y: 0;
+                    width: 100%;
+                    height: 100%;
+                    viewbox-width: 52;
+                    viewbox-height: 52;
+                    stroke: root.accent;
+                    stroke-width: 2px;
+                    MoveTo {
+                        x: 26 + 20 * sin(-135deg);
+                        y: 26 - 20 * cos(-135deg);
+                    }
+                    ArcTo {
+                        radius-x: 20;
+                        radius-y: 20;
+                        x: 26 + 20 * sin(root.theta);
+                        y: 26 - 20 * cos(root.theta);
+                        sweep: true;
+                        large-arc: root.norm > 0.6666;
+                    }
+                }
+                // Aguja y punto central.
+                Rectangle {
+                    x: 26px - 1px;
+                    y: 26px - 18px;
+                    width: 2px;
+                    height: 18px;
+                    background: root.accent;
+                    transform-origin: { x: 1px, y: 18px };
+                    transform-rotation: root.theta;
+                }
+                Rectangle {
+                    x: 23px;
+                    y: 23px;
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 3px;
+                    background: root.accent;
+                }
+            }
+            Readout { text: root.text; accent: root.accent; width: 74px; }
+        }
+
+        ta := TouchArea {
+            enabled: root.enabled;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down) {
+                    fs.focus();
+                    root.start-y = ta.mouse-y;
+                    root.start-value = root.norm;
+                    root.dragging = true;
+                    root.begin();
+                } else if (event.kind == PointerEventKind.move && root.dragging) {
+                    root.changed(clamp(root.start-value + (root.start-y - ta.mouse-y) / 130px, 0.0, 1.0));
+                } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                    if (root.dragging) {
+                        root.dragging = false;
+                        root.end();
+                    }
+                }
+            }
+            double-clicked => { root.changed(root.default-value); }
+        }
+    }
+}
+
+// Slider horizontal para Bass y Treble (rango normalizado 0..1).
+component SliderH inherits Rectangle {
+    in property <float> value: 0;
+    in property <float> default-value: 0.5;
+    in property <string> label;
+    in property <string> text;
+    in property <color> accent: Palette.border;
+    in property <bool> enabled: true;
+    opacity: root.enabled ? 1.0 : 0.35;
+    accessible-role: AccessibleRole.slider;
+    accessible-label: root.label;
+    accessible-description: "Deslizador horizontal. Doble clic restaura el valor por defecto.";
+    accessible-value: root.text;
+    accessible-value-minimum: 0;
+    accessible-value-maximum: 1;
+    accessible-value-step: 0.01;
+    callback changed(float);
+    callback begin();
+    callback end();
+
+    property <float> norm: clamp(root.value, 0.0, 1.0);
+    property <float> start-value: 0;
+    property <length> start-x: 0px;
+    property <bool> dragging: false;
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.RightArrow || event.text == Key.UpArrow) {
+                root.changed(clamp(root.value + 0.01, 0.0, 1.0));
+                return accept;
+            } else if (event.text == Key.LeftArrow || event.text == Key.DownArrow) {
+                root.changed(clamp(root.value - 0.01, 0.0, 1.0));
+                return accept;
+            } else if (event.text == Key.Home) {
+                root.changed(0.0);
+                return accept;
+            } else if (event.text == Key.End) {
+                root.changed(1.0);
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            spacing: 3px;
+            HorizontalLayout {
+                Text {
+                    text: root.label;
+                    color: Palette.text-dim;
+                    font-size: 10px;
+                    vertical-alignment: center;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Readout { text: root.text; accent: root.accent; width: 64px; }
+            }
+            Rectangle {
+                height: 10px;
+                background: Palette.well;
+                border-color: !root.enabled ? Palette.border :
+                    (fs.has-focus ? root.accent :
+                    (ta.has-hover ? root.accent.mix(Palette.border, 0.5) : Palette.border));
+                border-width: fs.has-focus ? 2px : 1px;
+                border-radius: 4px;
+                Rectangle {
+                    x: 2px;
+                    y: 2px;
+                    width: (parent.width - 4px) * root.norm;
+                    height: parent.height - 4px;
+                    border-radius: 3px;
+                    background: @linear-gradient(90deg, Palette.border, root.accent);
+                    opacity: root.dragging ? 0.95 : 0.6;
+                }
+                Rectangle {
+                    x: 2px + (parent.width - 6px) * root.norm;
+                    y: 0px;
+                    width: 6px;
+                    height: parent.height;
+                    border-radius: 3px;
+                    background: root.accent;
+                }
+            }
+        }
+
+        ta := TouchArea {
+            enabled: root.enabled;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down) {
+                    fs.focus();
+                    root.start-x = ta.mouse-x;
+                    root.start-value = root.norm;
+                    root.dragging = true;
+                    root.begin();
+                    root.changed(clamp(ta.mouse-x / root.width, 0.0, 1.0));
+                } else if (event.kind == PointerEventKind.move && root.dragging) {
+                    root.changed(clamp(root.start-value + (ta.mouse-x - root.start-x) / root.width, 0.0, 1.0));
+                } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                    if (root.dragging) {
+                        root.dragging = false;
+                        root.end();
+                    }
+                }
+            }
+            double-clicked => { root.changed(root.default-value); }
+        }
+    }
+}
 
 export component KhodesUi inherits Window {
     title: "Khodes";
-    width: 1120px;
-    height: 700px;
+    // Sin tamaño propio: `SlintEditor` fija la geometría de la ventana (1120×700
+    // por defecto, 920×620 mínimo, 1440×760 wide) y el layout se refluye.
+    background: Palette.bg;
 
-    Rectangle {
-        background: #0a0a14;
+    // Parámetros de host (IDs 1..19). Rust los sincroniza y recibe los cambios.
+    in-out property <float> brightness: 1;
+    in-out property <float> key-click: 0;
+    in-out property <float> attack: 0.020100502512562814;
+    in-out property <float> decay: 0.07035175879396985;
+    in-out property <float> sustain: 0.6;
+    in-out property <float> release: 0.09547738693467336;
+    in-out property <float> volume: 0.3;
+    in-out property <float> drive: 0;
+    in-out property <float> bass: 0.5;
+    in-out property <float> treble: 0.5;
+    in-out property <float> trem-rate: 0.4;
+    in-out property <float> trem-depth: 0;
+    in-out property <float> chorus-rate: 0.16;
+    in-out property <float> chorus-depth: 0;
+    in-out property <float> reverb: 0;
+    in-out property <float> polyphony: 0.4838709677419355;
+    in-out property <float> bend-range: 0.08333333333333333;
+    in-out property <float> velocity: 0.5;
+    in-out property <float> fine-tune: 0.5;
 
-        Text {
-            text: "KHODES";
-            color: #ffdd44;
-            font-size: 42px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+    // Cadenas de readout, formateadas en Rust (UI_SPEC §8).
+    in-out property <string> brightness-text: "20.00 kHz";
+    in-out property <string> key-click-text: "0 %";
+    in-out property <string> attack-text: "5 ms";
+    in-out property <string> decay-text: "150 ms";
+    in-out property <string> sustain-text: "60 %";
+    in-out property <string> release-text: "150 ms";
+    in-out property <string> volume-text: "30 %";
+    in-out property <string> drive-text: "0 %";
+    in-out property <string> bass-text: "0.0 dB";
+    in-out property <string> treble-text: "0.0 dB";
+    in-out property <string> trem-rate-text: "4.0 Hz";
+    in-out property <string> trem-depth-text: "0 %";
+    in-out property <string> chorus-rate-text: "0.80 Hz";
+    in-out property <string> chorus-depth-text: "0 %";
+    in-out property <string> reverb-text: "0 %";
+    in-out property <string> polyphony-text: "16";
+    in-out property <string> bend-range-text: "2 st";
+    in-out property <string> velocity-text: "50 %";
+    in-out property <string> fine-tune-text: "0 ct";
+
+    // Telemetría atómica (no son parámetros de host).
+    in-out property <float> meter-voices: 0;
+    in-out property <float> meter-peak-l: 0;
+    in-out property <float> meter-peak-r: 0;
+    in-out property <float> meter-note: 0;
+    in-out property <float> meter-sustain: 0;
+    in-out property <string> voices-text: "voces: 0/16";
+    in-out property <string> status-text: "Khodes 0.1.0-preview.1";
+    in-out property <int> preset-index: 0;
+
+    callback preset-changed(int);
+    callback brightness-changed(float);
+    callback key-click-changed(float);
+    callback attack-changed(float);
+    callback decay-changed(float);
+    callback sustain-changed(float);
+    callback release-changed(float);
+    callback volume-changed(float);
+    callback drive-changed(float);
+    callback bass-changed(float);
+    callback treble-changed(float);
+    callback trem-rate-changed(float);
+    callback trem-depth-changed(float);
+    callback chorus-rate-changed(float);
+    callback chorus-depth-changed(float);
+    callback reverb-changed(float);
+    callback polyphony-changed(float);
+    callback bend-range-changed(float);
+    callback velocity-changed(float);
+    callback fine-tune-changed(float);
+    callback begin-edit(int);
+    callback end-edit(int);
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+
+        // Cabecera: identidad, preset (el host gestiona los archivos), MIDI,
+        // número de voces y LEDs de nota/sustain.
+        Rectangle {
+            height: 44px;
+            background: Palette.panel;
+            border-color: Palette.border;
+            border-width: 1px;
+            border-radius: 5px;
+            HorizontalLayout {
+                padding: 8px;
+                spacing: 14px;
+                Text {
+                    text: "KHODES";
+                    color: Palette.voice;
+                    font-size: 24px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+                combo := ComboBox {
+                    model: ["Init", "Bright", "Warm", "Punch"];
+                    current-index: root.preset-index;
+                    width: 110px;
+                    accessible-label: "Preset de fábrica";
+                    selected => { root.preset-changed(combo.current-index); }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: "MIDI"; color: Palette.text-dim; font-size: 11px; vertical-alignment: center; }
+                Led { accent: Palette.voice; lit: root.meter-note > 0.5; }
+                Text { text: "SUS"; color: Palette.text-dim; font-size: 11px; vertical-alignment: center; }
+                Led { accent: Palette.fx; lit: root.meter-sustain > 0.5; }
+                Text { text: root.voices-text; color: Palette.text; font-size: 12px; vertical-alignment: center; }
+            }
+        }
+
+        // VOZ + ENV.
+        HorizontalLayout {
+            height: 178px;
+            spacing: 8px;
+            Section {
+                title: "VOZ";
+                accent: Palette.voice;
+                horizontal-stretch: 1;
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 12px;
+                    Fader {
+                        value: root.brightness; default-value: 1;
+                        label: "Brightness"; text: root.brightness-text; accent: Palette.voice;
+                        changed(v) => { root.brightness-changed(v); }
+                        begin => { root.begin-edit(1); }
+                        end => { root.end-edit(1); }
+                    }
+                    Fader {
+                        value: root.key-click; default-value: 0;
+                        label: "Key Click"; text: root.key-click-text; accent: Palette.voice;
+                        changed(v) => { root.key-click-changed(v); }
+                        begin => { root.begin-edit(2); }
+                        end => { root.end-edit(2); }
+                    }
+                }
+            }
+            Section {
+                title: "ENV";
+                accent: Palette.env;
+                horizontal-stretch: 3;
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 10px;
+                    Fader {
+                        value: root.attack; default-value: 0.020100502512562814;
+                        label: "Attack"; text: root.attack-text; accent: Palette.env;
+                        changed(v) => { root.attack-changed(v); }
+                        begin => { root.begin-edit(3); }
+                        end => { root.end-edit(3); }
+                    }
+                    Fader {
+                        value: root.decay; default-value: 0.07035175879396985;
+                        label: "Decay"; text: root.decay-text; accent: Palette.env;
+                        changed(v) => { root.decay-changed(v); }
+                        begin => { root.begin-edit(4); }
+                        end => { root.end-edit(4); }
+                    }
+                    Fader {
+                        value: root.sustain; default-value: 0.6;
+                        label: "Sustain"; text: root.sustain-text; accent: Palette.env;
+                        changed(v) => { root.sustain-changed(v); }
+                        begin => { root.begin-edit(5); }
+                        end => { root.end-edit(5); }
+                    }
+                    Fader {
+                        value: root.release; default-value: 0.09547738693467336;
+                        label: "Release"; text: root.release-text; accent: Palette.env;
+                        changed(v) => { root.release-changed(v); }
+                        begin => { root.begin-edit(6); }
+                        end => { root.end-edit(6); }
+                    }
+                }
+            }
+        }
+
+        // AMP + FX.
+        HorizontalLayout {
+            height: 190px;
+            spacing: 8px;
+            Section {
+                title: "AMP";
+                accent: Palette.amp;
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    spacing: 6px;
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        Knob {
+                            value: root.volume; default-value: 0.3;
+                            label: "Volume"; text: root.volume-text; accent: Palette.amp;
+                            changed(v) => { root.volume-changed(v); }
+                            begin => { root.begin-edit(7); }
+                            end => { root.end-edit(7); }
+                        }
+                        Knob {
+                            value: root.drive; default-value: 0;
+                            label: "Drive"; text: root.drive-text; accent: Palette.amp;
+                            changed(v) => { root.drive-changed(v); }
+                            begin => { root.begin-edit(8); }
+                            end => { root.end-edit(8); }
+                        }
+                    }
+                    SliderH {
+                        value: root.bass; default-value: 0.5;
+                        label: "Bass"; text: root.bass-text; accent: Palette.amp;
+                        changed(v) => { root.bass-changed(v); }
+                        begin => { root.begin-edit(9); }
+                        end => { root.end-edit(9); }
+                    }
+                    SliderH {
+                        value: root.treble; default-value: 0.5;
+                        label: "Treble"; text: root.treble-text; accent: Palette.amp;
+                        changed(v) => { root.treble-changed(v); }
+                        begin => { root.begin-edit(10); }
+                        end => { root.end-edit(10); }
+                    }
+                }
+            }
+            Section {
+                title: "FX";
+                accent: Palette.fx;
+                horizontal-stretch: 2;
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 6px;
+                    Knob {
+                        value: root.trem-rate; default-value: 0.4;
+                        label: "Trem Rate"; text: root.trem-rate-text; accent: Palette.fx;
+                        changed(v) => { root.trem-rate-changed(v); }
+                        begin => { root.begin-edit(11); }
+                        end => { root.end-edit(11); }
+                    }
+                    Knob {
+                        value: root.trem-depth; default-value: 0;
+                        label: "Trem Depth"; text: root.trem-depth-text; accent: Palette.fx;
+                        changed(v) => { root.trem-depth-changed(v); }
+                        begin => { root.begin-edit(12); }
+                        end => { root.end-edit(12); }
+                    }
+                    Knob {
+                        value: root.chorus-rate; default-value: 0.16;
+                        label: "Chorus Rate"; text: root.chorus-rate-text; accent: Palette.fx;
+                        changed(v) => { root.chorus-rate-changed(v); }
+                        begin => { root.begin-edit(13); }
+                        end => { root.end-edit(13); }
+                    }
+                    Knob {
+                        value: root.chorus-depth; default-value: 0;
+                        label: "Chorus Depth"; text: root.chorus-depth-text; accent: Palette.fx;
+                        changed(v) => { root.chorus-depth-changed(v); }
+                        begin => { root.begin-edit(14); }
+                        end => { root.end-edit(14); }
+                    }
+                    Knob {
+                        value: root.reverb; default-value: 0;
+                        label: "Reverb"; text: root.reverb-text; accent: Palette.fx;
+                        changed(v) => { root.reverb-changed(v); }
+                        begin => { root.begin-edit(15); }
+                        end => { root.end-edit(15); }
+                    }
+                }
+            }
+        }
+
+        // GLOBAL.
+        Section {
+            title: "GLOBAL";
+            accent: Palette.global;
+            height: 104px;
+            HorizontalLayout {
+                alignment: center;
+                spacing: 16px;
+                Knob {
+                    value: root.polyphony; default-value: 0.4838709677419355;
+                    label: "Polyphony"; text: root.polyphony-text; accent: Palette.global;
+                    changed(v) => { root.polyphony-changed(v); }
+                    begin => { root.begin-edit(16); }
+                    end => { root.end-edit(16); }
+                }
+                Knob {
+                    value: root.bend-range; default-value: 0.08333333333333333;
+                    label: "Bend Range"; text: root.bend-range-text; accent: Palette.global;
+                    changed(v) => { root.bend-range-changed(v); }
+                    begin => { root.begin-edit(17); }
+                    end => { root.end-edit(17); }
+                }
+                Knob {
+                    value: root.velocity; default-value: 0.5;
+                    label: "Velocity"; text: root.velocity-text; accent: Palette.global;
+                    changed(v) => { root.velocity-changed(v); }
+                    begin => { root.begin-edit(18); }
+                    end => { root.end-edit(18); }
+                }
+                Knob {
+                    value: root.fine-tune; default-value: 0.5;
+                    label: "Fine Tune"; text: root.fine-tune-text; accent: Palette.global;
+                    changed(v) => { root.fine-tune-changed(v); }
+                    begin => { root.begin-edit(19); }
+                    end => { root.end-edit(19); }
+                }
+            }
+        }
+
+        // Pie: medidor L/R y estado.
+        Rectangle {
+            height: 46px;
+            background: Palette.panel;
+            border-color: Palette.border;
+            border-width: 1px;
+            border-radius: 5px;
+            HorizontalLayout {
+                padding: 8px;
+                spacing: 8px;
+                Text { text: "L"; color: Palette.text-dim; font-size: 11px; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 10px;
+                    background: Palette.well;
+                    border-color: Palette.border;
+                    border-width: 1px;
+                    Rectangle {
+                        x: 1px; y: 1px;
+                        width: (parent.width - 2px) * clamp(root.meter-peak-l, 0.0, 1.0);
+                        height: parent.height - 2px;
+                        background: root.meter-peak-l > 0.95 ? Palette.alert : @linear-gradient(90deg, Palette.fx, Palette.voice);
+                    }
+                }
+                Text { text: "R"; color: Palette.text-dim; font-size: 11px; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 10px;
+                    background: Palette.well;
+                    border-color: Palette.border;
+                    border-width: 1px;
+                    Rectangle {
+                        x: 1px; y: 1px;
+                        width: (parent.width - 2px) * clamp(root.meter-peak-r, 0.0, 1.0);
+                        height: parent.height - 2px;
+                        background: root.meter-peak-r > 0.95 ? Palette.alert : @linear-gradient(90deg, Palette.fx, Palette.voice);
+                    }
+                }
+                Text { text: root.status-text; color: Palette.text-dim; font-size: 10px; vertical-alignment: center; }
+            }
         }
     }
 }

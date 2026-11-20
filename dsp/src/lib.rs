@@ -160,7 +160,9 @@ impl Engine {
         self.freq_mult = 1.0;
     }
 
-    #[cfg(test)]
+    /// Número de voces activas. Accessor de solo lectura, sin asignación:
+    /// lo usa el wrapper para publicar telemetría al editor.
+    #[must_use]
     pub fn active_voices(&self) -> usize {
         self.allocator.active_count()
     }

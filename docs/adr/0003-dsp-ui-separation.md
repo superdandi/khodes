@@ -75,7 +75,9 @@ Reglas duras:
 ### Neutrales
 
 - El snapshot puede ser parcial; la UI conserva el último frame válido.
-- La telemetría se actualiza cada N muestras, no cada bloque, para no gastar CPU.
+- La telemetría se publica una vez por bloque de audio (picos L/R, voces, nota
+  y sustain). El coste es una única pasada sobre el buffer ya renderizado; el
+  editor lee el valor atómico más reciente sin bloquear.
 
 ---
 
@@ -95,7 +97,11 @@ Reglas duras:
 
 - [x] Crear `dsp/` como crate independiente sin dependencias de TRUCE/Slint.
 - [x] Definir `dsp::Event` y `dsp::Params` como tipos puros.
-- [ ] Implementar el snapshot de telemetría con atomics y secuencia (M5).
+- [x] Implementar el snapshot de telemetría con atomics y secuencia (M5):
+      cinco `#[meter] MeterSlot` en `KhodesParams`, publicados desde `process`
+      con `ProcessContext::set_meter` y leídos por el editor con
+      `PluginContext::get_meter`. TRUCE usa un `MeterStore` atómico sin locks;
+      los IDs de meter están fuera del contrato `1..19` y no entran en el estado.
 - [x] Prohibir en `dsp/` imports de `truce`, `slint`, `std::fs`, `std::net`.
 - [x] Añadir un check local (`tools/check-dsp-boundary.sh`) que verifique esas
       prohibiciones; pendiente de ejecutarlo en CI cuando haya remote.

@@ -58,6 +58,10 @@ clap-sys = { version = "0.5", optional = true }
 [build-dependencies]
 truce-slint-build = { version = "6.3" }
 
+[dev-dependencies]
+# Guardar los baselines RGBA del editor como PNG (docs/UI_SPEC.md §10).
+image = "0.25"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

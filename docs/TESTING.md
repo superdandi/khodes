@@ -54,6 +54,11 @@ cargo test --locked --workspace --features rt-paranoid
 cargo truce build --clap --vst3
 ```
 
+En la CPU local (Intel i3 M380, sin AVX2) añadir `--target-cpu v2` al comando
+anterior: el valor por defecto de `cargo truce` es `x86-64-v3` y produce
+`SIGILL`. No usar `RUSTFLAGS` para esto: se aplica también a los build scripts
+de las dependencias y provoca el mismo fallo.
+
 `rt-paranoid` es bloqueante: cualquier asignación en el hilo de audio falla la
 aceptación.
 

@@ -1,7 +1,7 @@
 # Especificación de UI — Khodes
 
-**Estado:** diseño objetivo, derivado del panel “Rhodes · Voz del instrumento”
-de Keys.
+**Estado:** implementado en M5, derivado del panel “Rhodes · Voz del
+instrumento” de Keys.
 
 La UI de Khodes conserva el lenguaje visual HUD cyberpunk de Studio Suite, pero
 se adapta a un editor de plugin: tamaño fijo/redimensionable, sin scroll
@@ -242,6 +242,18 @@ Reglas:
 - No commitear capturas temporales.
 - Cubrir default, mínimo, wide y una nota activa.
 
+Generación (ruta headless del `SoftwareRenderer` de Slint, sin GPU ni ventana):
+
+```sh
+cargo run --example screenshots
+```
+
+El ejemplo usa `Editor::screenshot` sobre `editor_at` /
+`editor_at_with_demo_meters`. La captura `slint-active.png` fija telemetría
+determinista (4 voces, nota y sustain activos, picos L/R de 0,72 y 0,58) sin
+tocar el hilo de audio. La `Window` de Slint no declara tamaño propio: el
+`SlintEditor` impone 1120×700, 920×620 o 1440×760 y el layout se refluye.
+
 ---
 
 ## 11. Lo que no se copia de Buffer Uppercut
@@ -258,13 +270,49 @@ Khodes usa la identidad de Keys, no la de Buffer Uppercut.
 
 ## 12. Checklist de UI
 
-- [ ] Layout default, mínimo y wide.
-- [ ] Secciones con color y LED.
-- [ ] Knobs, faders y sliders funcionales.
-- [ ] Readouts con unidades correctas.
-- [ ] Doble clic restaura default.
-- [ ] Teclado y accesibilidad.
-- [ ] Medidor de voces.
-- [ ] Sin diálogos de archivo.
-- [ ] Screenshots baseline.
-- [ ] Sin repaint costoso en audio.
+- [x] Layout default, mínimo y wide.
+- [x] Secciones con color y LED.
+- [x] Knobs, faders y sliders funcionales.
+- [x] Readouts con unidades correctas.
+- [x] Doble clic restaura default.
+- [x] Teclado y accesibilidad.
+- [x] Medidor de voces.
+- [x] Sin diálogos de archivo.
+- [x] Screenshots baseline.
+- [x] Sin repaint costoso en audio.
+
+---
+
+## 13. Atajos y comportamiento
+
+| Acción | Resultado |
+|---|---|
+| Arrastre vertical en knob | Ajuste relativo: ~130 px recorren todo el rango |
+| Arrastre en fader | Ajuste absoluto: el thumb salta al punto tocado |
+| Arrastre horizontal en slider | Ajuste absoluto sobre la pista |
+| Doble clic en cualquier control | Restaura el default del parámetro |
+| ↑ / → con foco | `+0,01` normalizado |
+| ↓ / ← con foco | `−0,01` normalizado |
+| `Home` / `End` con foco | Valor mínimo / máximo |
+| `Tab` / `Mayús+Tab` | Siguiente / anterior control |
+| Combo “Preset de fábrica” | Aplica Init, Bright, Warm o Punch |
+
+Todos los controles exponen `accessible-role="slider"`, `accessible-label`,
+`accessible-value` (el readout formateado), `accessible-value-minimum=0`,
+`accessible-value-maximum=1` y `accessible-value-step=0,01`. El foco es visible:
+el borde del control pasa al color de acento de su sección. Las secciones son
+`accessible-role="groupbox"` y el combo tiene etiqueta accesible en español.
+
+El combo aplica 19 gestos `begin_edit`/`set_param`/`end_edit` por preset; no
+abre archivos. Los presets completos (`.khodespreset`) se cargan y guardan
+desde el host. La tabla de presets de fábrica del editor es provisional: M6 la
+migrará a `khodes-kit`.
+
+Cada control emite un gesto de automatización completo al host. La telemetría
+(LED de nota, LED de sustain, `voces: N/16` y medidor L/R) se lee de slots
+atómicos publicados por `process`; la UI nunca bloquea el hilo de audio.
+
+El indicador de clipping es rojo estático cuando el pico supera 0,95: no se
+usa parpadeo para evitar repaints innecesarios (§5 y §8). Las marcas de escala
+del knob se omiten por el mismo motivo; el arco de valor y el readout cubren
+la lectura del parámetro.

@@ -175,6 +175,20 @@ pub struct KhodesParams {
         default = 0.5
     )]
     fine_tune: FloatParam,
+
+    // Telemetría audio → UI. No son parámetros de host: el derive les asigna
+    // IDs en el rango de meters y no entran en el estado ni en el conteo de
+    // parámetros (docs/adr/0003-dsp-ui-separation.md).
+    #[meter]
+    pub meter_peak_l: MeterSlot,
+    #[meter]
+    pub meter_peak_r: MeterSlot,
+    #[meter]
+    pub meter_voices: MeterSlot,
+    #[meter]
+    pub meter_note: MeterSlot,
+    #[meter]
+    pub meter_sustain: MeterSlot,
 }
 
 /// Rango real de cada parámetro, en unidades de producto.
@@ -242,6 +256,60 @@ pub fn bend_range_semitones(normalized: f64) -> u8 {
     (denormalize(normalized, ranges::PITCH_BEND_SEMITONES)).round() as u8
 }
 
+/// Formatea un valor normalizado para el readout del editor.
+///
+/// Único punto de formato: Slint recibe cadenas ya listas y no duplica las
+/// curvas de `docs/PARAMETERS.md`. Los IDs son el contrato publico `1..19`.
+#[must_use]
+pub fn display_value(id: u32, normalized: f64) -> String {
+    let n = normalized.clamp(0.0, 1.0);
+    let pct = || format!("{:.0} %", denormalize(n, (0.0, 1.0)) * 100.0);
+    let db = || {
+        let v = denormalize(n, ranges::EQ_DB);
+        if v.abs() < 0.05 {
+            "0.0 dB".to_string()
+        } else {
+            format!("{:+.1} dB", v)
+        }
+    };
+    let seconds = |range: (f64, f64)| {
+        let v = denormalize(n, range);
+        if v < 1.0 {
+            format!("{:.0} ms", v * 1000.0)
+        } else {
+            format!("{:.2} s", v)
+        }
+    };
+    match id {
+        1 => {
+            let hz = brightness_hz(n);
+            if hz >= 1000.0 {
+                format!("{:.2} kHz", hz / 1000.0)
+            } else {
+                format!("{:.0} Hz", hz)
+            }
+        }
+        2 | 5 | 7 | 8 | 12 | 14 | 15 | 18 => pct(),
+        3 => seconds(ranges::ATTACK_S),
+        4 => seconds(ranges::DECAY_S),
+        6 => seconds(ranges::RELEASE_S),
+        9 | 10 => db(),
+        11 => format!("{:.1} Hz", denormalize(n, ranges::TREMOLO_RATE_HZ)),
+        13 => format!("{:.2} Hz", denormalize(n, ranges::CHORUS_RATE_HZ)),
+        16 => format!("{}", polyphony_voices(n)),
+        17 => format!("{} st", bend_range_semitones(n)),
+        19 => {
+            let cents = denormalize(n, ranges::FINE_TUNE_CENTS);
+            if cents.abs() < 0.5 {
+                "0 ct".to_string()
+            } else {
+                format!("{:+.0} ct", cents)
+            }
+        }
+        _ => String::new(),
+    }
+}
+
 impl KhodesParams {
     /// Traduce los 19 valores normalizados del host a unidades del DSP.
     ///
@@ -277,6 +345,22 @@ impl KhodesParams {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn display_value_uses_the_documented_units() {
+        assert_eq!(display_value(1, 1.0), "20.00 kHz");
+        assert_eq!(display_value(1, 0.0), "500 Hz");
+        assert_eq!(display_value(3, 0.020100502512562814), "5 ms");
+        assert_eq!(display_value(4, 0.07035175879396985), "150 ms");
+        assert_eq!(display_value(9, 0.0), "-12.0 dB");
+        assert_eq!(display_value(9, 0.5), "0.0 dB");
+        assert_eq!(display_value(9, 1.0), "+12.0 dB");
+        assert_eq!(display_value(11, 0.4), "4.0 Hz");
+        assert_eq!(display_value(16, 0.4838709677419355), "16");
+        assert_eq!(display_value(17, 0.08333333333333333), "2 st");
+        assert_eq!(display_value(19, 0.5), "0 ct");
+        assert_eq!(display_value(7, 0.3), "30 %");
+    }
 
     #[test]
     fn normalized_defaults_match_the_contract() {

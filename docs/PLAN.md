@@ -58,16 +58,17 @@ anuncia hasta que M9 valide los binarios.
 | M2 | Voz monofónica | **Implementada** (falta A/B) | MIDI 60 afinado y con carácter |
 | M3 | Polifonía y allocator | **Implementada y verificada** | 32 notas sin fallos |
 | M4 | Bus global y efectos | **Implementada** (corpus v1 congelado; M4-22 abierta) | Corpus v1 congelado |
-| M5 | Editor Slint | Pendiente | Editor usable en 3 tamaños |
+| M5 | Editor Slint | **Implementada y verificada** | Editor usable en 3 tamaños |
 | M6 | Estado y presets | Pendiente | Guardar/reabrir en 2 DAWs |
 | M7 | MIDI avanzado | Pendiente | Matriz MIDI verde |
 | M8 | Sitio y release | Pendiente | Draft revisado y publicado |
 | M9 | Validación y estabilización | Pendiente | `v0.1.0` estable |
 
-**Bloqueo activo:** ninguno crítico. Toolchain validado, M1–M3 implementados.
+**Bloqueo activo:** ninguno crítico. Toolchain validado, M1–M5 implementados.
 Pendientes de validación externa: carga en DAW real (M1-18), CI con remote
-(M1-22) y render A/B contra Keys (M2-19). Siguiente tarea de código: M4 — bus
-global y efectos.
+(M1-22) y render A/B contra Keys (M2-19). Incidencia de rendimiento abierta:
+M4-22 (reverb a 0,7× tiempo real en la CPU local). Siguiente tarea de código:
+M6 — estado y presets.
 
 ---
 
@@ -283,25 +284,25 @@ corpus v1 queda congelado con checksums.
 **Objetivo:** editor propio usable, accesible y coherente con Keys.
 **Gate:** screenshots estables en default, mínimo y wide; sin diálogos de archivo.
 
-- [ ] **M5-01** Definir la ventana y el layout base en Slint.
-- [ ] **M5-02** Implementar `Knob` con arrastre vertical y doble clic.
-- [ ] **M5-03** Implementar `Fader` vertical con interacción absoluta.
-- [ ] **M5-04** Implementar `Slider` horizontal para Bass y Treble.
-- [ ] **M5-05** Implementar `Readout` con formato por unidad.
-- [ ] **M5-06** Implementar `Section` con LED y color de acento.
-- [ ] **M5-07** Implementar las secciones VOZ, ENV, AMP, FX y GLOBAL.
-- [ ] **M5-08** Implementar medidor de voces y nivel de salida.
-- [ ] **M5-09** Implementar estados hover, activo, foco y deshabilitado.
-- [ ] **M5-10** Conectar gestos de automatización begin/set/end.
-- [ ] **M5-11** Implementar teclado y accesibilidad.
-- [ ] **M5-12** Implementar combo de presets de fábrica.
-- [ ] **M5-13** Verificar que no hay diálogos de archivo propios.
-- [ ] **M5-14** Capturar baseline default (1120×700).
-- [ ] **M5-15** Capturar baseline mínimo (920×620).
-- [ ] **M5-16** Capturar baseline wide (1440×760).
-- [ ] **M5-17** Capturar baseline con nota activa.
-- [ ] **M5-18** Revisar contraste AA y navegación por Tab.
-- [ ] **M5-19** Documentar atajos y comportamiento en `UI_SPEC`.
+- [x] **M5-01** Definir la ventana y el layout base en Slint.
+- [x] **M5-02** Implementar `Knob` con arrastre vertical y doble clic.
+- [x] **M5-03** Implementar `Fader` vertical con interacción absoluta.
+- [x] **M5-04** Implementar `Slider` horizontal para Bass y Treble.
+- [x] **M5-05** Implementar `Readout` con formato por unidad.
+- [x] **M5-06** Implementar `Section` con LED y color de acento.
+- [x] **M5-07** Implementar las secciones VOZ, ENV, AMP, FX y GLOBAL.
+- [x] **M5-08** Implementar medidor de voces y nivel de salida.
+- [x] **M5-09** Implementar estados hover, activo, foco y deshabilitado.
+- [x] **M5-10** Conectar gestos de automatización begin/set/end.
+- [x] **M5-11** Implementar teclado y accesibilidad.
+- [x] **M5-12** Implementar combo de presets de fábrica.
+- [x] **M5-13** Verificar que no hay diálogos de archivo propios.
+- [x] **M5-14** Capturar baseline default (1120×700).
+- [x] **M5-15** Capturar baseline mínimo (920×620).
+- [x] **M5-16** Capturar baseline wide (1440×760).
+- [x] **M5-17** Capturar baseline con nota activa.
+- [x] **M5-18** Revisar contraste AA y navegación por Tab.
+- [x] **M5-19** Documentar atajos y comportamiento en `UI_SPEC`.
 
 **Criterio de salida:** el editor se abre con el audio corriendo, responde sin
 bloquear y los baselines están comprometidos.
@@ -556,7 +557,37 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   idénticos (checksums correctos), harness verde, 34 tests con `rt-paranoid`,
   bundles CLAP/VST3, smoke host y standalone. Bundles instalados en `~/.clap` y
   `~/.vst3`; el smoke también pasa sobre el bundle instalado. Guard DSP verde.
-- Siguiente acción: commit de M4 y M5 — editor Slint.
+- M5-01…M5-13 completados: `ui/main.slint` define `Knob`, `Fader`, `SliderH`,
+  `Readout`, `Section`, LEDs y medidor L/R; `src/editor.rs` cablea los 19 IDs
+  con gestos `begin_edit`/`set_param`/`end_edit` y sincroniza readouts y
+  telemetría. El combo de fábrica aplica cuatro presets provisionales sin
+  diálogos de archivo.
+- Telemetría: cinco `#[meter] MeterSlot` en `src/params.rs` publicados desde
+  `process` con `set_meter` y leídos con `get_meter`; `Engine::active_voices()`
+  pasó a público. Los IDs de meter no cuentan como parámetros de host.
+- Incidencias M5 resueltas: sintaxis de gradientes (`@linear-gradient` /
+  `@radial-gradient`), `transform-origin` como `Point`, `event.position`
+  inexistente (usar `ta.mouse-x/y`), coordenadas de `Path` como `float` con
+  `viewbox`, `min-width` duplicado en `Window`, traits de lectura f64 y
+  conversiones `i32 → u32` en los macros, y `AccessibleRole` en minúsculas.
+- M5-14…M5-17 completados: cuatro baselines generados con
+  `cargo run --example screenshots` (`slint-default.png`, `slint-minimum.png`,
+  `slint-wide.png`, `slint-active.png`). Incidencia corregida: la `Window`
+  de Slint tenía `width/height` fijos y `slint-wide.png` dejaba una franja
+  transparente; se eliminaron y `SlintEditor` impone la geometría.
+- M5-18/M5-19 completados: `accessible-role`/`accessible-label`/
+  `accessible-value` en los 19 controles, foco visible, estados hover y
+  deshabilitado; atajos y comportamiento documentados en `UI_SPEC.md` §13.
+- M5 verificado: `/tmp/khodes-m5-final.log` (fmt, capturas, Clippy `-D
+  warnings`, 34 tests, `rt-paranoid`, boundary) y `/tmp/khodes-m5-final3.log`
+  (bundles CLAP/VST3 con `--target-cpu v2` y smoke CLAP), todos `EXIT:0`.
+  Standalone compilado (`/tmp/khodes-m5-final2.log`).
+- Incidencia M5 de build resuelta: `RUSTFLAGS="-C target-cpu=v2"` provocaba
+  `SIGILL` en build scripts de dependencias; el flag correcto es
+  `cargo truce build --clap --vst3 --target-cpu v2`. También corregido el
+  formato de `src/editor.rs` (`cargo fmt --all`) y el tipo complejo del closure
+  de sincronización (`type SyncFn`).
+- Siguiente acción: M6 — estado y presets (`khodes-kit`).
 - Riesgo vigente: M4-22 (CPU de la reverb) y disco con ≈4,0 GB libres.
 
 ---

@@ -5,16 +5,17 @@ sección de voz del sintetizador **Keys** de **Studio Suite**, empaquetado como
 plugin de audio **CLAP + VST3** para usarse en cualquier DAW sobre macOS,
 Windows y Linux.
 
-> **Estado del proyecto:** fases M1–M4 implementadas; M4 cerrado con corpus
-> `contract/v1/` congelado (13 fixtures) y verificado. El workspace compila,
+> **Estado del proyecto:** fases M1–M5 implementadas. M4 cerrado con corpus
+> `contract/v1/` congelado (13 fixtures) y verificado; M5 cerrado con editor
+> Slint accesible y cuatro baselines en `screenshots/`. El workspace compila,
 > existen bundles CLAP y VST3, el standalone de desarrollo compila y el smoke
 > host CLAP verifica la carga. El DSP incluye la voz de Keys, un allocator
 > polifónico de hasta 32 voces y el bus de efectos (drive, brillo, EQ, chorus,
 > tremolo, reverb convolucional y master estéreo): 34 tests verdes. Aún no
-> están implementados el editor, los presets ni el sitio. Pendientes: optimizar
-> el consumo de CPU de la reverb cuando se activa (M4-22), validar en DAW real,
-> ejecutar CI con remote y hacer el A/B contra Keys. El avance tarea por tarea
-> se marca en [`docs/PLAN.md`](docs/PLAN.md).
+> están implementados la persistencia de presets ni el sitio. Pendientes:
+> optimizar el consumo de CPU de la reverb cuando se activa (M4-22), validar en
+> DAW real, ejecutar CI con remote y hacer el A/B contra Keys. El avance tarea
+> por tarea se marca en [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Origen y referencias
 
@@ -79,11 +80,12 @@ khodes/
 ├── .github/workflows/         CI de build, tests y validadores
 ├── dsp/                       Motor de audio puro (voz monofónica implementada)
 ├── kit/                       Presets y códec .khodespreset (esqueleto)
+├── examples/screenshots.rs    Generador de baselines del editor
 ├── src/                       Integración TRUCE, parámetros y editor
-├── ui/                        Componentes Slint (ventana mínima)
+├── ui/                        Componentes Slint (panel Khodes)
 ├── tools/                     Guarda de frontera DSP y smoke host CLAP
 ├── contract/                  Corpus de regresión DSP (pendiente)
-├── screenshots/               Baselines del editor (pendiente)
+├── screenshots/               Baselines del editor (default, mínimo, wide, activo)
 ├── docs/                      Documentación técnica y plan
 └── site/                      Sitio Astro de producto (pendiente)
 ```
