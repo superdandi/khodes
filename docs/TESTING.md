@@ -223,6 +223,16 @@ cargo test -p khodes-dsp --test contract
 - 32 notas simultáneas.
 - Eventos fuera de orden.
 - Note-off sin note-on previo (no debe crashear).
+- CC7 como ganancia de performance y CC121 restaurándola.
+- Orden estable por offset con eventos desordenados.
+
+**Resultado M7:** 9 tests de integración MIDI en `src/midi.rs` cubren dos
+canales con la misma nota, solapes con note-off cruzado, note-on/off en el
+mismo bloque, bend centro/extremos/retorno, CC123 con sustain, hosts sin
+offsets, CC7/CC121, orden estable y eventos huérfanos/fuera de bloque. El test
+DSP `cc7_scales_master_gain_without_touching_host_params` verifica la ganancia
+tras el suavizado del bus. Total del workspace: **74 tests** verdes, con y sin
+`rt-paranoid`. La matriz de DAWs de §10 sigue pendiente (M7-15).
 
 ---
 

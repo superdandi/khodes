@@ -98,6 +98,8 @@ fn event_line(event: &Event) -> String {
         EventBody::AllNotesOff => (5, 0, 0, 0, 0.0, 0.0),
         EventBody::AllSoundOff => (6, 0, 0, 0, 0.0, 0.0),
         EventBody::ResetControllers => (7, 0, 0, 0, 0.0, 0.0),
+        // Extensión compatible: los fixtures v1 existentes no usan este kind.
+        EventBody::MasterVolume { level } => (8, 0, 0, 0, level, 0.0),
     };
     format!(
         "{} {} {} {} {} {} {}",
@@ -143,6 +145,7 @@ fn parse_event(line: &str) -> Option<Event> {
         5 => EventBody::AllNotesOff,
         6 => EventBody::AllSoundOff,
         7 => EventBody::ResetControllers,
+        8 => EventBody::MasterVolume { level: a },
         _ => return None,
     };
     Some(Event::new(offset, body))

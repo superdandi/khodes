@@ -136,7 +136,7 @@ Esta asignación se revisará si se añade una matriz de modulación en el roadm
 | CC | Uso v1 | Notas |
 |---:|---|---|
 | 1 | Mod wheel → tremolo | Performance, no persistente |
-| 7 | Volume | Mapeo directo a `volume` si el host lo envía; opcional |
+| 7 | Volume | Ganancia de performance sobre `volume`, sample-accurate; no persistente (ADR 0006) |
 | 11 | Expression | Diferido |
 | 64 | Sustain | Ver sección 4 |
 | 120 | All Sound Off | Libera voces con fade corto |
@@ -177,6 +177,14 @@ bloque de N muestras:
   al inicio del bloque y se documenta la limitación.
 - El sustain se evalúa en el offset del CC; las notas afectadas se procesan en
   segmentos.
+- El wrapper ordena los eventos por `sample_offset` de forma estable: si el host
+  entrega la lista desordenada, se reordena sin alterar el orden de llegada de
+  los eventos con el mismo offset.
+- Los eventos con `sample_offset >= num_samples` se descartan; el contrato de
+  TRUCE exige offsets dentro del bloque.
+- CC7 se aplica en su offset y se suaviza en el bus (~20 ms), pero no mueve el
+  parámetro de host ID 7 ni se guarda. Si el host además hace MIDI learn de CC7
+  al parámetro `volume`, ambas ganancias se multiplican.
 
 ---
 
@@ -203,6 +211,7 @@ El robo debe ser determinista y testeable con una secuencia MIDI fija.
 | Pitch Bend | Sí |
 | CC64 Sustain | Sí |
 | CC1 Mod Wheel | Sí (tremolo) |
+| CC7 Volume | Sí (ganancia de performance, no persistente) |
 | CC120 / 121 / 123 | Sí |
 | Aftertouch | No |
 | Poly Pressure | No |
@@ -229,6 +238,8 @@ El robo debe ser determinista y testeable con una secuencia MIDI fija.
 11. Guardar y reabrir: sin notas reanudadas.
 12. Reproducir la misma secuencia dos veces: resultado idéntico (salvo PRNG
     sembrado).
+13. CC7 a 0 y a 127: silencio y ganancia neutra; CC121 restaura el neutro.
+14. Lista de eventos desordenada: orden estable por offset y por llegada.
 
 ---
 

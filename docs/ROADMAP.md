@@ -174,15 +174,19 @@ sin notas reanudadas (verificado con notas activas en test unitario).
 
 ### M7 — MIDI avanzado
 
+**Estado:** implementado y verificado; queda pendiente M7-15 (DAW real).
+
 Entregables:
 
-- Pitch bend.
-- Mod wheel.
-- CC120/121/123.
-- Eventos sample-accurate.
-- Pruebas de canales y overlapping holds.
+- Pitch bend de 14 bits con suavizado y rango 0–24 semitonos.
+- Mod wheel y CC7 como macros de performance no persistentes.
+- CC120/121/123, con restauración de bend, sustain, mod wheel y CC7.
+- Eventos sample-accurate con orden estable por offset.
+- 9 tests de integración MIDI y test DSP de CC7; 74 tests en el workspace.
+- Limitaciones aceptadas en [`MIDI.md`](MIDI.md) §8.3.
 
-Criterio de salida: matriz MIDI de [TESTING](TESTING.md) verde.
+Criterio de salida: matriz MIDI de [TESTING](TESTING.md) §5 verde; §10
+pendiente de ejecución en REAPER y Ableton Live.
 
 ---
 

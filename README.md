@@ -5,18 +5,20 @@ sección de voz del sintetizador **Keys** de **Studio Suite**, empaquetado como
 plugin de audio **CLAP + VST3** para usarse en cualquier DAW sobre macOS,
 Windows y Linux.
 
-> **Estado del proyecto:** fases M1–M6 implementadas. M4 cerrado con corpus
+> **Estado del proyecto:** fases M1–M7 implementadas. M4 cerrado con corpus
 > `contract/v1/` congelado (13 fixtures) y verificado; M5 cerrado con editor
 > Slint accesible y cuatro baselines en `screenshots/`; M6 cerrado con estado
-> del host vía TRUCE, códec `.khodespreset` v1 y 6 presets de fábrica. El
-> workspace compila, existen bundles CLAP y VST3, el standalone de desarrollo
-> compila y el smoke host CLAP verifica la carga y el ciclo de estado. El DSP
-> incluye la voz de Keys, un allocator polifónico de hasta 32 voces y el bus de
-> efectos (drive, brillo, EQ, chorus, tremolo, reverb convolucional y master
-> estéreo): 64 tests verdes. Aún no está implementado el sitio. Pendientes:
+> del host vía TRUCE, códec `.khodespreset` v1 y 6 presets de fábrica; M7 cerrado
+> con MIDI sample-accurate, orden estable por offset, CC7 como ganancia de
+> performance y 9 tests de integración MIDI. El workspace compila, existen
+> bundles CLAP y VST3, el standalone de desarrollo compila y el smoke host CLAP
+> verifica la carga y el ciclo de estado. El DSP incluye la voz de Keys, un
+> allocator polifónico de hasta 32 voces y el bus de efectos (drive, brillo, EQ,
+> chorus, tremolo, reverb convolucional y master estéreo): **74 tests verdes**
+> con y sin `rt-paranoid`. Aún no está implementado el sitio. Pendientes:
 > optimizar el consumo de CPU de la reverb cuando se activa (M4-22), validar en
-> DAW real (incluido guardar/reabrir, M6-17), ejecutar CI con remote y hacer el
-> A/B contra Keys. El avance tarea por tarea se marca en
+> DAW real (guardar/reabrir M6-17 y matriz MIDI M7-15), ejecutar CI con remote y
+> hacer el A/B contra Keys. El avance tarea por tarea se marca en
 > [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Origen y referencias

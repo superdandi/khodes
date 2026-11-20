@@ -343,21 +343,22 @@ ningún proyecto se abre “sonando solo”.
 **Objetivo:** comportamiento MIDI completo y probado.
 **Gate:** matriz de [TESTING](TESTING.md) §5 y §10 verde.
 
-- [ ] **M7-01** Implementar pitch bend de 14 bits con suavizado.
-- [ ] **M7-02** Implementar `pitch_bend_range` 0–24 semitonos.
-- [ ] **M7-03** Implementar CC1 mod wheel → tremolo.
-- [ ] **M7-04** Implementar CC120, CC121 y CC123.
-- [ ] **M7-05** Implementar CC7 volume si el host lo envía.
-- [ ] **M7-06** Implementar eventos sample-accurate en todos los canales.
-- [ ] **M7-07** Implementar orden estable para eventos con el mismo offset.
-- [ ] **M7-08** Test de dos canales con la misma nota.
-- [ ] **M7-09** Test de overlapping holds y note-off cruzado.
-- [ ] **M7-10** Test de note-on/off en el mismo bloque.
-- [ ] **M7-11** Test de bend en centro, extremos y retorno.
-- [ ] **M7-12** Test de CC123 con notas sostenidas.
-- [ ] **M7-13** Test de host sin offsets (aplicación a inicio de bloque).
-- [ ] **M7-14** Documentar limitaciones MIDI aceptadas.
-- [ ] **M7-15** Completar la matriz de DAWs obligatoria.
+- [x] **M7-01** Implementar pitch bend de 14 bits con suavizado.
+- [x] **M7-02** Implementar `pitch_bend_range` 0–24 semitonos.
+- [x] **M7-03** Implementar CC1 mod wheel → tremolo.
+- [x] **M7-04** Implementar CC120, CC121 y CC123.
+- [x] **M7-05** Implementar CC7 volume si el host lo envía.
+- [x] **M7-06** Implementar eventos sample-accurate en todos los canales.
+- [x] **M7-07** Implementar orden estable para eventos con el mismo offset.
+- [x] **M7-08** Test de dos canales con la misma nota.
+- [x] **M7-09** Test de overlapping holds y note-off cruzado.
+- [x] **M7-10** Test de note-on/off en el mismo bloque.
+- [x] **M7-11** Test de bend en centro, extremos y retorno.
+- [x] **M7-12** Test de CC123 con notas sostenidas.
+- [x] **M7-13** Test de host sin offsets (aplicación a inicio de bloque).
+- [x] **M7-14** Documentar limitaciones MIDI aceptadas.
+- [ ] **M7-15** Completar la matriz de DAWs obligatoria (bloqueada: no hay
+  REAPER ni Ableton Live en este entorno).
 
 **Criterio de salida:** todos los casos MIDI documentados pasan y las
 limitaciones están escritas.
@@ -631,6 +632,46 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
 - Siguiente acción: M7 — MIDI avanzado.
 - Riesgo vigente: M4-22 (CPU de la reverb), M6-17 (DAW real) y disco con
   1,1 GB libres.
+
+### 2026-11-20 — M7: MIDI avanzado
+
+- M7-01…M7-04 ya estaban implementados desde M3 (bend de 14 bits con suavizado,
+  `pitch_bend_range` ID 17, CC1 → tremolo y CC120/121/123). Se cubren con tests
+  nuevos en `src/midi.rs` y `dsp/src/lib.rs` en lugar de reescribir el DSP.
+- M7-05 completado: CC7 se traduce a `MasterVolume { level = value/127 }`. El
+  motor aplica `params.volume * cc_volume` en el bus, en el offset del evento y
+  con el suavizado existente de ~20 ms. No toca el parámetro ID 7, no se guarda
+  y CC121 lo devuelve a neutro. Decisión registrada en el ADR 0006.
+- M7-06 y M7-07 completados: `MidiMapper::translate` ordena de forma estable
+  por `sample_offset` sobre el array de stack, conservando el orden de llegada
+  cuando hay eventos con el mismo offset. El DSP ya partía el bloque en
+  segmentos por offset.
+- M7-08…M7-13 completados: 9 tests de integración en `src/midi.rs` más el test
+  DSP de CC7. Incluyen dos canales con la misma nota, solapes con note-off
+  cruzado, note-on/off en el mismo bloque, bend centro/extremos/retorno, CC123
+  con sustain, hosts sin offsets, CC7/CC121, orden estable y eventos
+  huérfanos/fuera de bloque.
+- M7-14 completado: limitaciones aceptadas en `MIDI.md` §8.3 (offsets
+  desconocidos, eventos fuera de bloque, CC7 no persistente, doble mapeo si el
+  host hace MIDI learn) y tabla de implementación actualizada en §10.
+- Verificación: `cargo fmt --all -- --check` y Clippy `-D warnings` (`EXIT:0`
+  en `/tmp/khodes-m7-fmt.log` y `/tmp/khodes-m7-clippy.log`); 74 tests verdes
+  con y sin `rt-paranoid` (`/tmp/khodes-m7-test4.log`, `/tmp/khodes-m7-rt.log`);
+  frontera DSP limpia, corpus v1 con 13 checksums correctos,
+  `cargo truce doctor` `EXIT:0` y 122 enlaces internos sin faltantes.
+- Bundles CLAP/VST3 reconstruidos con `--target-cpu v2`
+  (`/tmp/khodes-m7-build.log`, `EXIT:0`; 7 min 03 s + 5 min 16 s), instalados en
+  `~/.clap` y `~/.vst3`; el `.so` de VST3 exporta `GetPluginFactory`. Smoke CLAP
+  sobre bundle local e instalado (`/tmp/khodes-m7-smoke-local.log` y
+  `/tmp/khodes-m7-smoke-installed.log`, ambos `EXIT:0`): 296 bytes de estado,
+  byte-estable y round-trip idéntico.
+- Incidencia resuelta durante la fase: el primer test de CC7 midió un solo
+  bloque de 512 muestras y vio solo una reducción del ~12 % por el suavizado
+  del bus; se corrigió midiendo tras 8 bloques, sin cambiar el DSP.
+- M7-15 queda pendiente: no hay REAPER ni Ableton Live en este entorno, así
+  que no se afirma compatibilidad con DAW real.
+- Riesgo vigente: M4-22 (CPU de la reverb), M6-17 y M7-15 (DAW real). Espacio
+  libre tras la limpieza de cachés y el build: 6,0 GB.
 
 ---
 

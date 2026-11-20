@@ -60,7 +60,8 @@ Ver [PARAMETERS](PARAMETERS.md).
 - CC64 sustain por canal.
 - Pitch bend ±`pitch_bend_range` semitonos, default 2.
 - CC1 mod wheel afecta tremolo (performance, no persistente).
-- CC120/121/123 soportados.
+- CC7 escala la ganancia maestra en su offset (performance, no persistente).
+- CC120/121/123 soportados; CC121 restaura bend, sustain, mod wheel y CC7.
 - Aftertouch, MPE, MIDI 2.0, Program Change y MIDI Out: no en v1.
 - Eventos con `sample_offset`; no `setTimeout`.
 

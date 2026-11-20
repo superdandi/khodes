@@ -54,7 +54,8 @@ docs/adr/
 ├── 0002-port-keys-rhodes-voice.md
 ├── 0003-dsp-ui-separation.md
 ├── 0004-versioned-preset-codec.md
-└── 0005-site-and-release-versioning.md
+├── 0005-site-and-release-versioning.md
+└── 0006-cc7-performance-gain.md
 ```
 
 - Número de cuatro dígitos, secuencial, nunca reutilizado.
@@ -125,6 +126,7 @@ Qué código, tests y documentos deben cambiar. Checklist si aplica.
 | [0003](0003-dsp-ui-separation.md) | Separación estricta DSP / UI | Aceptado | 2026-11-19 |
 | [0004](0004-versioned-preset-codec.md) | Códec de preset versionado | Aceptado | 2026-11-19 |
 | [0005](0005-site-and-release-versioning.md) | Sitio estático y versionado de releases | Aceptado | 2026-11-19 |
+| [0006](0006-cc7-performance-gain.md) | CC7 como ganancia de performance | Aceptado | 2026-11-20 |
 
 ---
 
@@ -135,6 +137,7 @@ Qué código, tests y documentos deben cambiar. Checklist si aplica.
 | [`../CONTRACTS.md`](../CONTRACTS.md) | Los ADRs explican el **porqué** de los contratos |
 | [`../ARCHITECTURE.md`](../ARCHITECTURE.md) | Estructura que los ADRs justifican |
 | [`../PARAMETERS.md`](../PARAMETERS.md) | Contrato afectado por 0002, 0003 y 0004 |
+| [`../MIDI.md`](../MIDI.md) | Contrato afectado por 0006 |
 | [`../STATE_AND_PRESETS.md`](../STATE_AND_PRESETS.md) | Contrato afectado por 0004 |
 | [`../RELEASES.md`](../RELEASES.md) | Contrato afectado por 0005 |
 | [`../SITE.md`](../SITE.md) | Contrato afectado por 0005 |

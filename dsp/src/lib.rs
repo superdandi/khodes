@@ -60,6 +60,11 @@ pub enum EventBody {
     ModWheel {
         amount: f64,
     },
+    /// CC7: ganancia de performance. `1.0` es el valor neutro; no se guarda en
+    /// presets ni en el estado del host (ADR 0006).
+    MasterVolume {
+        level: f64,
+    },
     /// CC123: libera las voces con release normal.
     AllNotesOff,
     /// CC120: corta las voces con fade corto.
@@ -104,6 +109,8 @@ pub struct Engine {
     params: Params,
     bend_semitones: f64,
     mod_wheel: f64,
+    /// Ganancia adicional de CC7; neutro en `1.0`. Suavizada por el bus.
+    cc_volume: f64,
     freq_mult: f64,
     smooth_coeff: f64,
 }
@@ -123,6 +130,7 @@ impl Default for Engine {
             params: Params::default(),
             bend_semitones: 0.0,
             mod_wheel: 0.0,
+            cc_volume: 1.0,
             freq_mult: 1.0,
             smooth_coeff: 0.0,
         }
@@ -157,6 +165,7 @@ impl Engine {
         self.bus.reset();
         self.bend_semitones = 0.0;
         self.mod_wheel = 0.0;
+        self.cc_volume = 1.0;
         self.freq_mult = 1.0;
     }
 
@@ -177,6 +186,12 @@ impl Engine {
     #[must_use]
     pub fn mod_wheel(&self) -> f64 {
         self.mod_wheel
+    }
+
+    /// Ganancia adicional de CC7. Solo diagnóstico y pruebas.
+    #[must_use]
+    pub fn cc_volume(&self) -> f64 {
+        self.cc_volume
     }
 
     fn apply_event(&mut self, body: &EventBody) {
@@ -211,12 +226,16 @@ impl Engine {
             EventBody::ModWheel { amount } => {
                 self.mod_wheel = amount.clamp(0.0, 1.0);
             }
+            EventBody::MasterVolume { level } => {
+                self.cc_volume = level.clamp(0.0, 1.0);
+            }
             EventBody::AllNotesOff => self.allocator.all_notes_off(),
             EventBody::AllSoundOff => self.allocator.all_sound_off(),
             EventBody::ResetControllers => {
                 self.allocator.reset_controllers();
                 self.bend_semitones = 0.0;
                 self.mod_wheel = 0.0;
+                self.cc_volume = 1.0;
             }
         }
     }
@@ -276,7 +295,12 @@ impl Engine {
         // El motor suma las voces en mono; el bus genera el estéreo.
         left[..frames].copy_from_slice(&self.mix[..frames]);
         right[..frames].copy_from_slice(&self.mix[..frames]);
-        self.bus.process(left, right, params, self.mod_wheel);
+        // CC7 es performance puro: escala la ganancia maestra del bus sin
+        // tocar los 19 parámetros del host. El bus suaviza `volume`, así que
+        // un cambio de CC7 no produce clic (ADR 0006).
+        let mut bus_params = *params;
+        bus_params.volume = (params.volume * self.cc_volume).min(1.0);
+        self.bus.process(left, right, &bus_params, self.mod_wheel);
     }
 
     /// Versión mono de `process_stereo`, para tests y benchmark. Devuelve el
@@ -366,6 +390,62 @@ mod tests {
         assert_eq!(engine.active_voices(), 0);
         assert_eq!(engine.bend_semitones(), 0.0);
         assert_eq!(engine.mod_wheel(), 0.0);
+        assert_eq!(engine.cc_volume(), 1.0);
+    }
+
+    /// Renderiza 8 bloques y devuelve el pico de los dos últimos, cuando el
+    /// suavizado de ~20 ms del bus ya convergió.
+    fn settled_peak(events: &[Event]) -> (f64, Engine) {
+        let mut engine = Engine::default();
+        engine.prepare(48_000.0, 512);
+        let mut out: Vec<f64> = vec![0.0; 512];
+        let no_events: &[Event] = &[];
+        let mut peak: f64 = 0.0;
+        for block in 0..8 {
+            engine.process(
+                &mut out,
+                if block == 0 { events } else { no_events },
+                &Params::default(),
+            );
+            if block >= 6 {
+                peak = peak.max(out.iter().fold(0.0_f64, |p, s| p.max(s.abs())));
+            }
+        }
+        (peak, engine)
+    }
+
+    #[test]
+    fn cc7_scales_master_gain_without_touching_host_params() {
+        let note = Event::new(
+            0,
+            EventBody::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 1.0,
+                note_id: 1,
+            },
+        );
+        let (baseline, _) = settled_peak(&[note]);
+        assert!(baseline > 0.0, "la nota debe producir salida");
+
+        let (reduced, mut quiet) =
+            settled_peak(&[Event::new(0, EventBody::MasterVolume { level: 0.5 }), note]);
+        assert_eq!(quiet.cc_volume(), 0.5);
+        assert!(
+            reduced < baseline * 0.7,
+            "CC7 a 0.5 debe reducir la ganancia: {reduced} vs {baseline}"
+        );
+
+        let mut out = vec![0.0; 512];
+        quiet.process(
+            &mut out,
+            &[
+                Event::new(0, EventBody::MasterVolume { level: 0.25 }),
+                Event::new(0, EventBody::ResetControllers),
+            ],
+            &Params::default(),
+        );
+        assert_eq!(quiet.cc_volume(), 1.0, "CC121 restaura CC7 a neutro");
     }
 
     #[test]
