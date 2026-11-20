@@ -1,0 +1,120 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { withBase } from '../lib/site.mjs';
+---
+
+<BaseLayout
+  title="Instalación"
+  description="Requisitos, rutas de instalación y solución de problemas para los previews sin firma de Khodes."
+>
+  <h1>Instalación</h1>
+  <p class="lede">
+    Khodes se distribuye como instrumento CLAP y VST3. Descarga el paquete de
+    tu plataforma desde la release correspondiente, verifica el checksum y
+    copia los bundles a las rutas que usa tu host.
+  </p>
+
+  <section class="section" aria-labelledby="requisitos-title">
+    <h2 id="requisitos-title">Requisitos</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>Windows x64</h3>
+        <p>Windows 10 o posterior en x64. Los previews no tienen firma Authenticode.</p>
+      </article>
+      <article class="card">
+        <h3>macOS</h3>
+        <p>Apple silicon. Los previews no están notarizados: Gatekeeper puede bloquear la primera carga.</p>
+      </article>
+      <article class="card">
+        <h3>Linux x64</h3>
+        <p>glibc y un entorno de escritorio compatible con Slint. Sin dependencias de audio propietarias añadidas.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="rutas-title">
+    <h2 id="rutas-title">Rutas habituales</h2>
+    <div class="checksums-block">
+      <pre><code>Windows:  %COMMONPROGRAMFILES%\CLAP\Khodes.clap
+          %COMMONPROGRAMFILES%\VST3\Khodes.vst3
+macOS:    ~/Library/Audio/Plug-Ins/CLAP/Khodes.clap
+          ~/Library/Audio/Plug-Ins/VST3/Khodes.vst3
+Linux:    ~/.clap/Khodes.clap
+          ~/.vst3/Khodes.vst3</code></pre>
+    </div>
+    <p>
+      Estas rutas son convenciones de los formatos, no una garantía de que un
+      host concreto vaya a detectar el plugin.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="verificar-title">
+    <h2 id="verificar-title">Verificación y primer arranque</h2>
+    <ol>
+      <li>Descarga el ZIP y <code>SHA256SUMS</code> de la misma release.</li>
+      <li>Comprueba el hash con <code>sha256sum -c SHA256SUMS</code> o la herramienta equivalente.</li>
+      <li>Extrae <code>Khodes.clap</code> y <code>Khodes.vst3</code> en las rutas anteriores.</li>
+      <li>Reinicia el host, vuelve a escanear plugins y carga Khodes en un proyecto vacío.</li>
+      <li>Confirma que el editor abre, envía una nota y guarda y reabre el proyecto de prueba.</li>
+    </ol>
+    <p>
+      Si el host no muestra el instrumento, revisa la configuración de escaneo
+      del host antes de repetir la instalación.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="sistema-title">
+    <h2 id="sistema-title">Binarios sin firma</h2>
+    <div class="notice">
+      <p>
+        En macOS, un binario sin notarizar puede exigir abrirlo desde
+        <strong>Privacidad y seguridad</strong> o quitar el atributo de cuarentena.
+        En Windows, SmartScreen puede mostrar una advertencia para archivos sin
+        firma. Verifica siempre el checksum con la release antes de continuar.
+      </p>
+    </div>
+    <p>
+      La firma de código y la notarización se reservan para una futura versión
+      estable. Un <code>SHA256SUMS</code> correcto no demuestra la identidad del
+      publicador.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="faq-title">
+    <h2 id="faq-title">Preguntas frecuentes</h2>
+    <dl class="faq">
+      <dt>¿Khodes es un efecto?</dt>
+      <dd>No. Recibe MIDI y genera audio; no procesa una entrada de audio.</dd>
+
+      <dt>¿Se distribuye el standalone?</dt>
+      <dd>No. El standalone existe solo para desarrollo y pruebas internas.</dd>
+
+      <dt>¿Qué ocurre con mis presets al cambiar de versión?</dt>
+      <dd>
+        El códec <code>.khodespreset</code> v1 está versionado por separado de la
+        versión del producto. Consulta la documentación de estado antes de
+        actualizar.
+      </dd>
+
+      <dt>¿Puedo mezclar ZIP de versiones distintas?</dt>
+      <dd>No. Cada release publica su propio juego de paquetes y su checksum. No se toma una plataforma de otra release.</dd>
+
+      <dt>¿Dónde están las limitaciones conocidas?</dt>
+      <dd>
+        En las notas de la release y en la <a href={withBase('/docs/')}>documentación técnica</a>.
+      </dd>
+    </dl>
+  </section>
+
+  <figure class="editor-frame">
+    <img
+      src={withBase('/screenshots/slint-minimum.png')}
+      alt="Editor de Khodes reducido a su tamaño mínimo compatible"
+      width="920"
+      height="620"
+      loading="lazy"
+      decoding="async"
+    />
+    <figcaption>Tamaño mínimo soportado por el editor.</figcaption>
+  </figure>
+</BaseLayout>

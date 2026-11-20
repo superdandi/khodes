@@ -1,0 +1,67 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getReleaseData } from '../lib/releases.mjs';
+import { withBase } from '../lib/site.mjs';
+
+const { repoUrl } = await getReleaseData();
+
+const documents = [
+  ['VOICE_SPEC.md', 'Comportamiento de la voz heredada de Keys.'],
+  ['ARCHITECTURE.md', 'Capas del plugin, propiedad de cada módulo y flujo de audio.'],
+  ['PARAMETERS.md', 'Los 19 parámetros de host, IDs estables y rangos.'],
+  ['MIDI.md', 'Notas, velocity, sustain, bend, CC7 y limitaciones.'],
+  ['STATE_AND_PRESETS.md', 'Estado del host y códec .khodespreset v1.'],
+  ['UI_SPEC.md', 'Diseño del editor Slint y requisitos de accesibilidad.'],
+  ['TESTING.md', 'Procedimientos de verificación y matriz de DAWs.'],
+  ['RELEASES.md', 'Versionado, drafts y publicación manual.'],
+  ['LICENSING.md', 'MIT, TRUCE, Slint y avisos de terceros.'],
+];
+---
+
+<BaseLayout
+  title="Documentación"
+  description="Índice de la documentación técnica de Khodes: voz, parámetros, MIDI, estado, interfaz, pruebas y releases."
+>
+  <h1>Documentación</h1>
+  <p class="lede">
+    El contrato de producto vive en el repositorio. Esta página resume qué
+    documenta cada archivo; los textos completos se mantienen junto al código.
+  </p>
+
+  <div class="grid">
+    {
+      documents.map(([file, description]) => (
+        <article class="card">
+          <h3>{file}</h3>
+          <p>{description}</p>
+          {repoUrl ? (
+            <p>
+              <a href={`${repoUrl}/blob/main/docs/${file}`}>Leer en GitHub</a>
+            </p>
+          ) : null}
+        </article>
+      ))
+    }
+  </div>
+
+  <section class="section" aria-labelledby="contratos-title">
+    <h2 id="contratos-title">Contratos estables</h2>
+    <ul>
+      <li>19 parámetros de host con IDs <code>1..19</code>.</li>
+      <li>Formatos CLAP y VST3; sin AU, AAX ni VST2 en la primera versión.</li>
+      <li>Preset nativo <code>.khodespreset</code> v1, independiente de la versión del producto.</li>
+      <li>Proceso sin asignaciones en el hilo de audio y eventos MIDI con offset de muestra.</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="mas-title">
+    <h2 id="mas-title">En este sitio</h2>
+    <p>
+      <a href={withBase('/downloads/')}>Descargas</a> ·
+      <a href={withBase('/installation/')}>Instalación</a> ·
+      <a href={withBase('/changelog/')}>Changelog</a> ·
+      <a href={withBase('/license/')}>Licencia</a> ·
+      <a href={withBase('/support/')}>Soporte</a>
+    </p>
+  </section>
+</BaseLayout>

@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getReleaseData } from '../lib/releases.mjs';
+import { withBase } from '../lib/site.mjs';
+
+const { release, repoUrl } = await getReleaseData();
+const statusText = release
+  ? `${release.prerelease ? 'Preview' : 'Estable'} ${release.version}`
+  : 'Sin release publicada';
+---
+
+<BaseLayout
+  title="Khodes"
+  description="Khodes es un piano eléctrico de tine sintetizado, disponible como plugin CLAP y VST3 para macOS, Windows y Linux."
+>
+  <section class="hero" aria-labelledby="hero-title">
+    <div>
+      <p class="eyebrow">Instrumento MIDI · CLAP + VST3</p>
+      <h1 id="hero-title">El tine de Keys, dentro de tu DAW.</h1>
+      <p class="lede">
+        Khodes reconstruye la voz de piano eléctrico de Keys como un instrumento
+        MIDI en tiempo real: fundamental, parcial de campana, key click y un bus
+        de efectos compartido, con 19 parámetros automatizables.
+      </p>
+      <p>
+        El proyecto está en fase de preview. Los binarios son unsigned y la
+        compatibilidad con hosts concretos solo se documenta después de
+        validarla en pruebas reales.
+      </p>
+      <div class="actions">
+        <a class="button" href={withBase('/downloads/')}>Ver descargas</a>
+        <a class="button-secondary" href={withBase('/installation/')}>Cómo instalar</a>
+      </div>
+      <p><span class="badge badge--preview">{statusText}</span></p>
+    </div>
+    <figure class="editor-frame">
+      <img
+        src={withBase('/screenshots/slint-default.png')}
+        alt="Editor Slint de Khodes con los grupos Voz, Env, Amp, FX y Global"
+        width="1120"
+        height="700"
+        loading="eager"
+        decoding="async"
+      />
+      <figcaption>Editor de Khodes en su estado por defecto.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section" aria-labelledby="sonido-title">
+    <h2 id="sonido-title">Sonido</h2>
+    <div class="grid">
+      <article class="card card--voice">
+        <h3>Tine y campana</h3>
+        <p>Dos osciladores con envolventes independientes reproducen el ataque armónico y la caída metálica.</p>
+      </article>
+      <article class="card card--env">
+        <h3>Envolvente</h3>
+        <p>Attack, Decay, Sustain y Release con la cola de 50 ms heredada de la voz original.</p>
+      </article>
+      <article class="card card--fx">
+        <h3>Bus de efectos</h3>
+        <p>Drive, brillo, EQ, chorus, tremolo y reverb comparten la salida estéreo de todas las voces.</p>
+      </article>
+      <article class="card card--global">
+        <h3>Interpretación</h3>
+        <p>Hasta 32 voces, velocity, sustain, pitch bend y CC7 como ganancia de performance.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="editor-title">
+    <h2 id="editor-title">Un panel, cinco grupos</h2>
+    <figure class="editor-frame">
+      <img
+        src={withBase('/screenshots/slint-active.png')}
+        alt="Editor de Khodes con parámetros activos y estado de voz"
+        width="1120"
+        height="700"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>El editor usa la estética HUD de Keys: ámbar, verde, magenta, cyan y azul.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section" aria-labelledby="formatos-title">
+    <h2 id="formatos-title">Formatos y estado</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>Formatos</h3>
+        <p>CLAP y VST3. El standalone existe solo para desarrollo y no se distribuye.</p>
+      </article>
+      <article class="card">
+        <h3>Plataformas objetivo</h3>
+        <p>Windows x64, macOS Apple silicon y Linux x64 con glibc, sujeto a las notas de cada release.</p>
+      </article>
+      <article class="card">
+        <h3>Documentación</h3>
+        <p>
+          <a href={withBase('/docs/')}>Documentación técnica</a> ·
+          <a href={withBase('/changelog/')}>Changelog</a> ·
+          <a href={withBase('/license/')}>Licencias</a>
+          {repoUrl ? <> · <a href={repoUrl}>Repositorio</a></> : null}
+        </p>
+      </article>
+    </div>
+  </section>
+</BaseLayout>

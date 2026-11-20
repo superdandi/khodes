@@ -15,10 +15,13 @@ Windows y Linux.
 > verifica la carga y el ciclo de estado. El DSP incluye la voz de Keys, un
 > allocator polifónico de hasta 32 voces y el bus de efectos (drive, brillo, EQ,
 > chorus, tremolo, reverb convolucional y master estéreo): **74 tests verdes**
-> con y sin `rt-paranoid`. Aún no está implementado el sitio. Pendientes:
-> optimizar el consumo de CPU de la reverb cuando se activa (M4-22), validar en
-> DAW real (guardar/reabrir M6-17 y matriz MIDI M7-15), ejecutar CI con remote y
-> hacer el A/B contra Keys. El avance tarea por tarea se marca en
+> con y sin `rt-paranoid`. M8 tiene el sitio Astro y los workflows de Pages y
+> release implementados y verificados en local, incluidos 10 tests del sitio y
+> builds offline y GitHub simulado; la publicación del preview sigue pendiente
+> de aprobación humana. Pendientes: optimizar el consumo de CPU de la reverb
+> cuando se activa (M4-22), validar en DAW real (guardar/reabrir M6-17 y matriz
+> MIDI M7-15), ejecutar CI con remote, ejecutar los validadores del tag
+> (M8-18) y hacer el A/B contra Keys. El avance tarea por tarea se marca en
 > [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Origen y referencias
@@ -91,7 +94,7 @@ khodes/
 ├── contract/                  Corpus de regresión DSP (pendiente)
 ├── screenshots/               Baselines del editor (default, mínimo, wide, activo)
 ├── docs/                      Documentación técnica y plan
-└── site/                      Sitio Astro de producto (pendiente)
+└── site/                      Sitio Astro de producto (M8 implementado)
 ```
 
 ## Documentación

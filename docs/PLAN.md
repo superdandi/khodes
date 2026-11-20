@@ -372,29 +372,37 @@ limitaciones están escritas.
 
 ### 11.1 Sitio
 
-- [ ] **M8-01** Crear `site/` con Astro 7.x y `base: '/khodes'`.
-- [ ] **M8-02** Implementar layout base, navegación y footer.
-- [ ] **M8-03** Implementar la home con capturas reales.
-- [ ] **M8-04** Implementar downloads con releases en build.
-- [ ] **M8-05** Implementar installation y troubleshooting.
-- [ ] **M8-06** Implementar changelog, license y support.
-- [ ] **M8-07** Implementar el cliente `RELEASES_SOURCE=github|offline`.
-- [ ] **M8-08** Implementar filtrado de drafts y contrato de nombres.
-- [ ] **M8-09** Implementar escape de notas y protección del token.
-- [ ] **M8-10** Añadir tests de releases y `check-build.mjs`.
-- [ ] **M8-11** Verificar accesibilidad, SEO, sitemap y robots.
-- [ ] **M8-12** Añadir el badge de atribución de Slint.
+- [x] **M8-01** Crear `site/` con Astro 7.4.13 y `base: '/khodes'`.
+- [x] **M8-02** Implementar layout base, navegación y footer.
+- [x] **M8-03** Implementar la home con capturas reales.
+- [x] **M8-04** Implementar downloads con releases en build.
+- [x] **M8-05** Implementar installation y troubleshooting.
+- [x] **M8-06** Implementar changelog, license y support.
+- [x] **M8-07** Implementar el cliente `RELEASES_SOURCE=github|offline`.
+- [x] **M8-08** Implementar filtrado de drafts y contrato de nombres.
+- [x] **M8-09** Implementar escape de notas y protección del token.
+- [x] **M8-10** Añadir tests de releases y `check-build.mjs`.
+- [x] **M8-11** Verificar accesibilidad, SEO, sitemap y robots.
+- [x] **M8-12** Añadir el badge de atribución de Slint.
 
 ### 11.2 Release
 
-- [ ] **M8-13** Crear `.github/workflows/pages.yml`.
-- [ ] **M8-14** Crear `.github/workflows/release.yml` con draft y `APPROVED.txt`.
-- [ ] **M8-15** Implementar `VERSION.md` y `THIRDPARTY.json`.
-- [ ] **M8-16** Empaquetar ZIPs unsigned para Windows, macOS y Linux.
-- [ ] **M8-17** Generar `SHA256SUMS` y `INSTALL.txt`.
-- [ ] **M8-18** Verificar validadores sobre los bundles del tag.
-- [ ] **M8-19** Publicar `v0.1.0-preview.1` manualmente.
-- [ ] **M8-20** Confirmar que el sitio muestra versión y enlaces correctos.
+- [x] **M8-13** Crear `.github/workflows/pages.yml`.
+- [x] **M8-14** Crear `.github/workflows/release.yml` con gate `APPROVED.txt` y
+  creación de draft; **no** se crea `APPROVED.txt` sin aprobación humana.
+- [x] **M8-15** Implementar `VERSION.md`, `THIRDPARTY.json` e `INSTALL.txt`
+  como borradores honestos; revisión legal pendiente.
+- [x] **M8-16** Empaquetar ZIPs unsigned para Windows, macOS y Linux en
+  `release.yml`; sin ejecución real hasta que exista tag y aprobación.
+- [x] **M8-17** Generar `SHA256SUMS` y verificarlo con
+  `tools/verify-release-assets.mjs`.
+- [ ] **M8-18** Verificar validadores sobre los bundles del tag (bloqueado:
+  `pluginval` y `clap-validator` no están instalados en local; el workflow los
+  instala en CI y aún no se ha ejecutado).
+- [ ] **M8-19** Publicar `v0.1.0-preview.1` manualmente (bloqueado: no hay
+  remote, no hay `APPROVED.txt` y CI solo crea drafts).
+- [ ] **M8-20** Confirmar que el sitio muestra versión y enlaces correctos
+  (bloqueado: depende de M8-19 y del despliegue real de Pages).
 
 **Criterio de salida:** un usuario puede descargar, instalar y tocar el preview
 siguiendo el sitio, sin binarios mezclados ni enlaces rotos.
@@ -672,6 +680,47 @@ Formato: fecha ISO, fase, tareas y nota. Lo más reciente arriba.
   que no se afirma compatibilidad con DAW real.
 - Riesgo vigente: M4-22 (CPU de la reverb), M6-17 y M7-15 (DAW real). Espacio
   libre tras la limpieza de cachés y el build: 6,0 GB.
+
+### 2026-11-20 — M8: sitio y pipeline de release
+
+- M8-01…M8-12 completados: `site/` con Astro 7.4.13, 7 páginas estáticas,
+  layout accesible, estilos HUD, capturas reales sincronizadas desde
+  `screenshots/` y badge oficial de Slint enlazado desde `slint.dev` con sus
+  dimensiones originales (212×97).
+- El cliente `src/lib/releases.mjs` implementa `offline/github`, filtrado de
+  drafts, prereleases publicadas, orden por fecha y versión, contrato de
+  nombres, exclusión de internos, validación de URLs y del repositorio, límite
+  de respuesta, sin redirecciones, checksums y escape del cuerpo de la release.
+- `npm install --no-audit --no-fund` correcto (191 paquetes) y `npm test` verde:
+  10 tests, 0 fallos (`TEST_EXIT:0`).
+- Incidencia de CPU: `npm run build` terminaba con `EXIT:132` (`SIGILL`) porque
+  `@astrojs/compiler-binding-linux-x64-gnu@0.5.3` exige instrucciones no
+  disponibles en este x86-64-v2. Solución local, no commiteada: binding WASI
+  0.5.3 extraído en `node_modules/@astrojs/compiler-binding-wasm32-wasi` con
+  `@napi-rs/wasm-runtime@1.2.7`, `@emnapi/core@1.11.3` y
+  `@emnapi/runtime@1.11.3`, y un parche local a
+  `node_modules/@astrojs/compiler-binding/index.js` que activa el WASI con
+  `KHODES_FORCE_WASI_BINDING=1`. No se usa `NAPI_RS_NATIVE_LIBRARY_PATH` porque
+  secuestra también el binding de `rolldown`.
+- Con ese fallback, `npm run build` genera las 7 páginas (`BUILD_EXIT:0`,
+  `/tmp/khodes-m8-build4.log`) y `npm run test:build` pasa con 16 archivos
+  (`/tmp/khodes-m8-testbuild2.log`). Se corrigió el validador, que asumía un
+  orden fijo de atributos en `<nav>`.
+- Build simulado de GitHub sin red con `scripts/mock-github-releases.mjs`:
+  `RELEASES_SOURCE=github` genera tres botones, notas con `<script>` escapado y
+  checksums coherentes; `test:build` pasa y el token de prueba no aparece en el
+  HTML (`/tmp/khodes-m8-build-github.log`, `/tmp/khodes-m8-testbuild-github.log`).
+- M8-13 y M8-14: `pages.yml` construye en PR y despliega solo en `main` o
+  release; `release.yml` exige `APPROVED.txt` con la versión exacta, valida
+  `Cargo.toml` y los documentos de release, compila en tres plataformas, ejecuta
+  validadores y crea un **draft** prerelease. CI nunca publica. Sintaxis YAML
+  verificada con el parser `yaml`.
+- M8-15…M8-17: `VERSION.md`, `THIRDPARTY.json`, `INSTALL.txt` y
+  `tools/verify-release-assets.mjs` creados con estado de revisión pendiente.
+  El verificador acepta un fixture válido y rechaza un hash modificado.
+- M8-18, M8-19 y M8-20 siguen abiertos: no hay validadores instalados en local,
+  no hay remote (`git remote -v` vacío) y no se crea `APPROVED.txt` sin
+  aprobación humana. No se afirma release publicada ni sitio desplegado.
 
 ---
 

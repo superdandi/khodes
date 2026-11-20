@@ -1,0 +1,16 @@
+---
+import { escapeHtml } from '../lib/releases.mjs';
+
+interface Props {
+  notes?: string;
+}
+
+const { notes = '' } = Astro.props;
+const text = notes.trim() ? notes : 'No hay notas publicadas para esta versión.';
+---
+
+<div
+  id="release-notes"
+  class="release-notes"
+  set:html={escapeHtml(text)}
+></div>

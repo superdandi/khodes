@@ -1,0 +1,85 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PlatformGrid from '../components/PlatformGrid.astro';
+import ReleaseNotes from '../components/ReleaseNotes.astro';
+import { getReleaseData } from '../lib/releases.mjs';
+import { formatDate } from '../lib/format.mjs';
+import { withBase } from '../lib/site.mjs';
+
+const { release, repoUrl, message } = await getReleaseData();
+const releasesUrl = repoUrl ? `${repoUrl}/releases` : '';
+---
+
+<BaseLayout
+  title="Descargas"
+  description="Descargas de Khodes leídas de GitHub Releases en tiempo de build, con checksums y notas de la versión."
+>
+  <h1>Descargas</h1>
+  <p class="lede">
+    Los botones se generan en tiempo de build desde la release publicada más
+    reciente. Nunca se mezclan plataformas de versiones distintas y los drafts
+    no aparecen.
+  </p>
+
+  {
+    release ? (
+      <>
+        <section class="card" aria-labelledby="release-title">
+          <div class="release-header">
+            <div>
+              <h2 id="release-title">{release.version}</h2>
+              <p class="release-meta">
+                Publicada el {formatDate(release.publishedAt)} ·
+                <span class:list={['badge', release.prerelease ? 'badge--preview' : 'badge--stable']}>
+                  {release.prerelease ? 'Preview' : 'Estable'}
+                </span>
+              </p>
+            </div>
+            {release.releaseUrl ? <a href={release.releaseUrl}>Ver release en GitHub</a> : null}
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="platforms-title">
+          <h2 id="platforms-title">Plataformas</h2>
+          <PlatformGrid platforms={release.platforms} />
+        </section>
+
+        <section class="section" aria-labelledby="notes-title">
+          <h2 id="notes-title">Notas de la versión</h2>
+          <ReleaseNotes notes={release.notes} />
+        </section>
+
+        <section class="section" aria-labelledby="integrity-title">
+          <h2 id="integrity-title">Integridad</h2>
+          <p>
+            Los previews no están firmados. <code>SHA256SUMS</code> verifica
+            integridad, no identidad: compara el valor antes de instalar.
+          </p>
+          {release.checksumsUrl ? (
+            <p><a href={release.checksumsUrl}>Descargar SHA256SUMS</a></p>
+          ) : (
+            <p class="notice">SHA256SUMS no está disponible en esta release.</p>
+          )}
+          <div class="checksums-block">
+            <pre id="sha256sums-text">{release.checksumsText}</pre>
+          </div>
+        </section>
+      </>
+    ) : (
+      <section class="card notice" aria-labelledby="no-release-title">
+        <h2 id="no-release-title">Sin descargas publicadas</h2>
+        <p>{message || 'No hay releases publicadas con assets elegibles.'}</p>
+        {releasesUrl ? <p><a href={releasesUrl}>Revisar releases en GitHub</a></p> : null}
+      </section>
+    )
+  }
+
+  <section class="section" aria-labelledby="help-title">
+    <h2 id="help-title">Antes de instalar</h2>
+    <p>
+      Lee la <a href={withBase('/installation/')}>guía de instalación</a> y usa un
+      proyecto de prueba. No se afirma compatibilidad con una DAW concreta hasta
+      que exista una validación documentada.
+    </p>
+  </section>
+</BaseLayout>

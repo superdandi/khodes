@@ -18,6 +18,7 @@ node_modules/
 site/dist/
 site/.astro/
 site/.cache/
+site/public/screenshots/
 npm-debug.log*
 yarn-error.log*
 

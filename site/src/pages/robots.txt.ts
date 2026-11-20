@@ -1,0 +1,14 @@
+import type { APIRoute } from 'astro';
+import { absoluteSiteUrl } from '../lib/site.mjs';
+
+export const prerender = true;
+
+export const GET: APIRoute = () =>
+  new Response(
+    `User-agent: *\nAllow: /\nSitemap: ${absoluteSiteUrl('/sitemap.xml')}\n`,
+    {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+      },
+    },
+  );

@@ -14,10 +14,10 @@ aplicación, no hay API en runtime y no hay React en el cliente.
 |---|---|
 | Framework | Astro 7.x |
 | Output | `static` |
-| Node | >= 22.12.0 |
+| Node | >= 22.23.4 |
 | Hosting | GitHub Pages |
-| Dominio | `https://TU-DOMINIO/` (placeholder) |
-| Base path | `/khodes` |
+| Dominio | `SITE_URL`; local `http://localhost:4321`, en CI `<owner>.github.io` salvo `vars.SITE_URL` |
+| Base path | `SITE_BASE`, default `/khodes` |
 | Releases | GitHub Releases API en build |
 | Tests | `node --test` + chequeo de build |
 
@@ -33,19 +33,22 @@ export default defineConfig({
 });
 ```
 
-Para Khodes:
+Para Khodes, los valores se derivan del entorno en `src/lib/site.mjs`:
 
 ```js
 import { defineConfig } from 'astro/config';
+import { BASE_PATH, SITE_URL } from './src/lib/site.mjs';
 
 export default defineConfig({
-  site: 'https://TU-DOMINIO',
-  base: '/khodes',
+  site: SITE_URL,
+  base: BASE_PATH,
   output: 'static',
   trailingSlash: 'always',
+  build: { format: 'directory' },
 });
 ```
 
+`SITE_URL` y `SITE_BASE` deben fijarse con valores reales antes de publicar.
 Si se usa GitHub Pages sin dominio propio, `site` será
 `https://TU-USUARIO.github.io` y `base` seguirá siendo `/khodes`.
 
@@ -86,8 +89,10 @@ Secciones sugeridas:
 6. **Enlaces:** documentación, changelog, licencia.
 7. **Footer:** créditos, licencia, atribución de Slint si aplica.
 
-No prometer “compatible con todos los DAWs”. Decir “CLAP y VST3; probado en
-REAPER y Ableton Live”, con la matriz real.
+No prometer “compatible con todos los DAWs”. Solo puede afirmarse “probado en
+REAPER y Ableton Live” cuando la matriz de [TESTING](TESTING.md) esté verde;
+hoy no es así. El texto publicado dice únicamente que Khodes ofrece CLAP y VST3
+y que la compatibilidad con hosts concretos se documenta tras validarla.
 
 ---
 
@@ -185,28 +190,31 @@ GitHub Pages
 
 ## 6. Workflow de GitHub Pages
 
-Disparadores:
+Disparadores implementados en `.github/workflows/pages.yml`:
 
-- push a `main` con cambios en `site/**`, `screenshots/**` o el workflow;
-- pull request con esos cambios (solo build, no deploy);
-- release publicada/editada/eliminada;
-- ejecución manual;
-- cron diario para capturar releases creadas con `GITHUB_TOKEN`.
+- push a `main`;
+- pull request (solo build, no deploy);
+- release publicada (`types: [published]`);
+- ejecución manual (`workflow_dispatch`);
+- cron diario a las 04:17 UTC.
 
 Jobs:
 
-1. **build:** checkout, Node 22, `npm ci`, `npm test`, `npm run build`,
-   `npm run test:build`, upload artifact.
-2. **deploy:** solo en release o push a `main`; `actions/deploy-pages`.
+1. **build:** configura `SITE_URL`, `SITE_BASE`, `RELEASES_SOURCE=github` y
+   `GITHUB_REPOSITORY`; checkout, Node 22.23.4, `npm ci`, `npm test`,
+   `npm run build`, `npm run test:build` y upload artifact.
+2. **deploy:** solo en release publicada o push a `main`; `actions/deploy-pages`.
 
 Permisos:
 
 ```yaml
 permissions:
   contents: read
+  pages: write
+  id-token: write
 ```
 
-El job de deploy añade `pages: write` e `id-token: write`.
+Los PR nunca despliegan. Un fallo de la API de Releases falla el build.
 
 ---
 
@@ -260,6 +268,17 @@ npm run build
 npm run test:build
 ```
 
+Build GitHub simulado, sin red:
+
+```sh
+cd site
+KHODES_MOCK_GITHUB=1 RELEASES_SOURCE=github \
+GITHUB_REPOSITORY=khodes/khodes GITHUB_TOKEN=token-de-prueba \
+NODE_OPTIONS="--import $PWD/scripts/mock-github-releases.mjs" \
+npm run build
+RELEASES_SOURCE=github GITHUB_REPOSITORY=khodes/khodes npm run test:build
+```
+
 Cubrir:
 
 - parseo de releases;
@@ -294,14 +313,16 @@ y carbón de Buffer Uppercut.
 
 ## 12. Checklist de lanzamiento del sitio
 
-- [ ] `astro.config.mjs` con `site` y `base` correctos.
-- [ ] Home, downloads e installation publicadas.
-- [ ] Sync de releases probado en modo offline y GitHub.
-- [ ] Drafts excluidos.
-- [ ] Nombres de archivo validados.
-- [ ] Checksums visibles.
-- [ ] Notas escapadas.
-- [ ] Workflow de Pages verde.
+- [x] `astro.config.mjs` derivado de `SITE_URL`/`SITE_BASE`.
+- [x] Home, downloads, installation, docs, changelog, license y support
+  implementadas.
+- [x] Sync de releases probado en modo offline y GitHub simulado.
+- [x] Drafts excluidos.
+- [x] Nombres de archivo validados.
+- [x] Checksums visibles.
+- [x] Notas escapadas.
+- [x] Accesibilidad y SEO revisados por `test:build`.
+- [ ] `SITE_URL` y `SITE_BASE` con los valores reales de producción.
+- [ ] Workflow de Pages verde en GitHub.
 - [ ] HTTPS y dominio correctos.
 - [ ] Enlaces de descarga verificados desde una ventana limpia.
-- [ ] Accesibilidad y SEO revisados.

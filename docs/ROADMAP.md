@@ -192,16 +192,22 @@ pendiente de ejecución en REAPER y Ableton Live.
 
 ### M8 — Primer preview público
 
+**Estado:** sitio y workflows implementados y verificados en local; preview no
+publicado.
+
 Entregables:
 
-- Sitio Astro con home, downloads e installation.
-- Workflow de release y Pages.
-- `VERSION.md`, `THIRDPARTY.json`, `APPROVED.txt`.
-- ZIPs unsigned para Windows, macOS y Linux.
-- Notas de release.
+- [x] Sitio Astro con home, downloads, installation, docs, changelog, license y
+  support.
+- [x] Workflow de Pages (`pages.yml`) y de release (`release.yml`, solo drafts).
+- [x] Borradores de `VERSION.md`, `THIRDPARTY.json` e `INSTALL.txt`.
+- [ ] `APPROVED.txt` con la versión aprobada por una persona.
+- [x] Empaquetado de ZIPs unsigned y `SHA256SUMS` en el workflow de release.
+- [ ] Notas de release revisadas en el draft.
 
 Criterio de salida: draft revisado, checksums verificados, release publicada a
-mano, sitio actualizado.
+mano, sitio actualizado. El sitio desplegado aún no puede verificarse: no hay
+remote configurado ni release publicada.
 
 ---
 

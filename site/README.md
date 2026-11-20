@@ -14,7 +14,7 @@ datos: el resultado es HTML, CSS y JS estático servido por GitHub Pages.
 
 | Herramienta | Versión |
 |---|---|
-| Node.js | >= 22.12.0 |
+| Node.js | >= 22.23.4 (exigido por Astro 7.4.13) |
 | npm | el incluido con Node |
 | Git | reciente |
 | `gh` (opcional) | para inspeccionar releases |
@@ -23,88 +23,97 @@ No se necesita Rust para trabajar en el sitio.
 
 ---
 
-## 2. Estructura prevista
+## 2. Estructura implementada
 
 ```text
 site/
-├── README.md                 Este documento
-├── astro.config.mjs          site, base, output, trailingSlash
-├── package.json              scripts y dependencias
-├── package-lock.json         lockfile reproducible
+├── README.md                     Este documento
+├── astro.config.mjs              site, base, output, trailingSlash desde env
+├── package.json                  scripts y dependencias
+├── package-lock.json             lockfile reproducible
 ├── public/
 │   ├── favicon.svg
-│   ├── robots.txt
-│   └── CNAME                 solo si hay dominio propio
+│   ├── og-image.svg
+│   └── screenshots/              generado; ignorado por git
 ├── scripts/
-│   ├── releases.mjs          cliente de GitHub Releases en build
-│   └── check-build.mjs       validación del HTML generado
+│   ├── sync-screenshots.mjs      copia capturas reales desde screenshots/
+│   ├── check-build.mjs           validación del HTML generado
+│   └── mock-github-releases.mjs  fixture local, sin red
 ├── src/
 │   ├── pages/
-│   │   ├── index.astro       Home
-│   │   ├── downloads.astro   Descargas por plataforma
-│   │   ├── installation.astro Instalación y requisitos
-│   │   ├── changelog.astro   Historial de versiones
-│   │   ├── license.astro     MIT, TRUCE, Slint y avisos
-│   │   └── support.astro     Contacto, bugs, FAQ
+│   │   ├── index.astro           Home
+│   │   ├── downloads.astro       Descargas, notas y checksums
+│   │   ├── installation.astro    Instalación y troubleshooting
+│   │   ├── docs.astro            Índice de documentación
+│   │   ├── changelog.astro       Última release publicada
+│   │   ├── license.astro         MIT, TRUCE, Slint y avisos
+│   │   ├── support.astro         Contacto, bugs, FAQ, privacidad
+│   │   ├── robots.txt.ts         endpoint prerenderizado
+│   │   └── sitemap.xml.ts        endpoint prerenderizado
 │   ├── layouts/
-│   │   └── BaseLayout.astro  Head, navegación, footer
+│   │   └── BaseLayout.astro      Head, navegación, canonical y footer
 │   ├── components/
 │   │   ├── DownloadButton.astro
 │   │   ├── ReleaseNotes.astro
 │   │   ├── PlatformGrid.astro
 │   │   └── SlintBadge.astro
 │   ├── lib/
-│   │   ├── releases.ts       Tipos y normalización de releases
-│   │   └── format.ts         Formato de fechas, tamaños y checksums
-│   ├── styles/
-│   │   └── global.css
-│   └── assets/
-│       ├── khodes-editor.png
-│       └── og-image.png
+│   │   ├── site.mjs              Variables de entorno y helpers de URL
+│   │   ├── releases.mjs          Cliente y normalización de releases
+│   │   └── format.mjs            Fechas, tamaños y checksums
+│   └── styles/
+│       └── global.css
 └── tests/
-    ├── releases.test.mjs     Parseo, filtrado y orden
-    └── build.test.mjs        Contrato del HTML generado
+    └── releases.test.mjs         10 tests del cliente de releases
 ```
 
-La estructura puede ajustarse, pero las páginas y el flujo de releases son
-contrato de producto.
+Las páginas y el flujo de releases son contrato de producto. Las capturas
+autoritativas viven en `screenshots/` en la raíz del repositorio; el directorio
+`public/screenshots/` se regenera en `predev` y `prebuild`.
 
 ---
 
 ## 3. Configuración de Astro
 
+`astro.config.mjs` no contiene dominios fijos. Los valores se derivan del
+entorno en `src/lib/site.mjs`:
+
+| Variable | Default local | Uso |
+|---|---|---|
+| `SITE_URL` | `http://localhost:4321` | Dominio canónico, sin barra final |
+| `SITE_BASE` | `/khodes` | Subdirectorio de GitHub Pages; `/` con dominio propio |
+| `RELEASES_SOURCE` | `offline` | `offline` o `github` |
+| `GITHUB_REPOSITORY` | vacío | Repositorio `owner/repo` del que se leen releases |
+| `GITHUB_REPO` | vacío | Alias de `GITHUB_REPOSITORY` |
+| `GITHUB_TOKEN` | vacío | Solo en tiempo de build; nunca se renderiza |
+
 ```js
-// astro.config.mjs
 import { defineConfig } from 'astro/config';
+import { BASE_PATH, SITE_URL } from './src/lib/site.mjs';
 
 export default defineConfig({
-  site: 'https://TU-DOMINIO',
-  base: '/khodes',
+  site: SITE_URL,
+  base: BASE_PATH,
   output: 'static',
   trailingSlash: 'always',
+  build: { format: 'directory' },
+  server: { host: true },
 });
 ```
 
-- `site`: dominio real, sin barra final.
-- `base`: `/khodes` si se sirve como subdirectorio de GitHub Pages.
-- `output: 'static'`: sin SSR ni adaptadores.
-- `trailingSlash: 'always'`: URLs canónicas terminadas en `/`.
-
-Con GitHub Pages sin dominio propio:
+Valores que debe fijar una persona antes de publicar:
 
 ```text
-site = https://TU-USUARIO.github.io
-base = /khodes
+SITE_URL=https://khodes.example    # o https://TU-USUARIO.github.io
+SITE_BASE=/                        # o /khodes en subdirectorio
+GITHUB_REPOSITORY=owner/khodes
 ```
 
-Con dominio propio:
+El workflow `pages.yml` usa `vars.SITE_URL` y `vars.SITE_BASE` si están
+definidos; si no, calcula `https://<owner>.github.io` y `/khodes`. El token
+nunca debe aparecer en `dist/`: `test:build` lo comprueba.
 
-```text
-site = https://khodes.example
-base = /
-```
-
-En ese caso, ajustar `base` y añadir `public/CNAME` si Pages lo requiere.
+Con dominio propio, crear `public/CNAME` con el dominio exacto.
 
 ---
 
@@ -113,7 +122,9 @@ En ese caso, ajustar `base` y añadir `public/CNAME` si Pages lo requiere.
 ```json
 {
   "scripts": {
+    "predev": "node scripts/sync-screenshots.mjs",
     "dev": "astro dev",
+    "prebuild": "node scripts/sync-screenshots.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "test": "node --test tests/*.test.mjs",
@@ -124,10 +135,10 @@ En ese caso, ajustar `base` y añadir `public/CNAME` si Pages lo requiere.
 
 | Comando | Uso |
 |---|---|
-| `npm run dev` | Servidor local con recarga |
-| `npm run build` | Genera `site/dist/` |
+| `npm run dev` | Sincroniza capturas y abre el servidor local |
+| `npm run build` | Sincroniza capturas y genera `site/dist/` |
 | `npm run preview` | Sirve `dist/` localmente |
-| `npm test` | Tests unitarios del sitio |
+| `npm test` | 10 tests del cliente de releases |
 | `npm run test:build` | Verifica el HTML generado |
 
 Flujo recomendado antes de un PR:
@@ -161,6 +172,7 @@ npm run test:build
 ```sh
 cd site
 RELEASES_SOURCE=github \
+GITHUB_REPOSITORY=owner/khodes \
 GITHUB_TOKEN="$(gh auth token)" \
 npm run build
 ```
@@ -309,28 +321,30 @@ Verifica sobre `dist/`:
 El sitio se publica con GitHub Actions en GitHub Pages. El workflow
 `.github/workflows/pages.yml`:
 
-1. Se dispara en push a `main` con cambios en `site/**`, `screenshots/**` o el
-   propio workflow.
-2. Se dispara en pull request con esos cambios, solo para construir.
-3. Se dispara en release publicada, editada o eliminada.
-4. Se puede ejecutar manualmente.
-5. Corre a diario para capturar releases creadas con `GITHUB_TOKEN`.
+1. Push a `main`.
+2. Pull request, solo para construir y verificar.
+3. Release publicada (`types: [published]`).
+4. Ejecución manual (`workflow_dispatch`).
+5. Cron diario a las 04:17 UTC para capturar releases publicadas.
 
 Jobs:
 
-- **build:** `npm ci`, `npm test`, `npm run build`, `npm run test:build`,
-  `actions/upload-pages-artifact`.
-- **deploy:** solo en `main` o release; `actions/deploy-pages`.
+- **build:** configura `SITE_URL`, `SITE_BASE`, `RELEASES_SOURCE=github` y
+  `GITHUB_REPOSITORY`; ejecuta `npm ci`, `npm test`, `npm run build`,
+  `npm run test:build` y `actions/upload-pages-artifact`.
+- **deploy:** solo en `main` o release publicada; `actions/deploy-pages`.
 
-Permisos:
+Permisos a nivel de workflow:
 
 ```yaml
 permissions:
   contents: read
+  pages: write
+  id-token: write
 ```
 
-El job de deploy añade `pages: write` e `id-token: write`. Los PR nunca
-despliegan.
+Los PR nunca despliegan. Un fallo de la API de Releases falla el build: no se
+publica un sitio con enlaces vacíos.
 
 ### 9.1 Configuración inicial en GitHub
 
@@ -359,6 +373,28 @@ solo verá la release cuando una persona la publique. Ver
 | El build falla por API | Token ausente o rate limit | Revisar `GITHUB_TOKEN` y logs |
 | Se muestran notas con HTML | Escape desactivado | Escapar como texto plano |
 | El sitio se ve vacío | `RELEASES_SOURCE` mal configurado | Usar `github` en producción |
+| `npm run build` termina con `EXIT:132` | Binding nativo de Astro exige AVX2/BMI2 | Aplicar el fallback WASI local descrito abajo |
+| `Class extends value undefined` tras fijar `NAPI_RS_NATIVE_LIBRARY_PATH` | La variable secuestra el binding de `rolldown` | Usar el parche local `KHODES_FORCE_WASI_BINDING`, no la variable global |
+
+### 10.1 Fallback WASI en CPU x86-64-v2
+
+Esta CPU no soporta AVX2 ni BMI2, y
+`@astrojs/compiler-binding-linux-x64-gnu@0.5.3` produce `SIGILL`. El workaround
+es **local y no se commitea**:
+
+1. Extraer `@astrojs/compiler-binding-wasm32-wasi@0.5.3` en
+   `node_modules/@astrojs/compiler-binding-wasm32-wasi/`.
+2. Instalar sin guardar `@napi-rs/wasm-runtime@1.2.7`, `@emnapi/core@1.11.3` y
+   `@emnapi/runtime@1.11.3`.
+3. Parchear `node_modules/@astrojs/compiler-binding/index.js` para que la rama
+   `KHODES_FORCE_WASI_BINDING` cargue
+   `../compiler-binding-wasm32-wasi/astro.wasi.cjs`.
+4. Ejecutar `KHODES_FORCE_WASI_BINDING=1 npm run build`.
+
+No usar `NAPI_RS_FORCE_WASI=1` (el loader llama al binario nativo antes del
+fallback) ni `NAPI_RS_NATIVE_LIBRARY_PATH` (afecta a todos los módulos napi-rs).
+`npm ci` elimina el fallback: hay que repetir estos pasos tras reinstalar.
+En CI, con CPU moderna, no hace falta.
 
 ---
 
@@ -383,6 +419,9 @@ solo verá la release cuando una persona la publique. Ver
 - [`../docs/RELEASES.md`](../docs/RELEASES.md)
 - [`../docs/LICENSING.md`](../docs/LICENSING.md)
 - [`../docs/adr/0005-site-and-release-versioning.md`](../docs/adr/0005-site-and-release-versioning.md)
+- [`../tools/verify-release-assets.mjs`](../tools/verify-release-assets.mjs)
+- [`../.github/workflows/pages.yml`](../.github/workflows/pages.yml)
+- [`../.github/workflows/release.yml`](../.github/workflows/release.yml)
 - [Astro](https://astro.build/)
 - [GitHub Pages](https://docs.github.com/pages)
 - [Buffer Uppercut — sitio](https://piducan.dev/buffer-uppercut/)

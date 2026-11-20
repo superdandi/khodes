@@ -1,0 +1,92 @@
+---
+import '../styles/global.css';
+import SlintBadge from '../components/SlintBadge.astro';
+import { REPO_URL, absoluteSiteUrl, withBase } from '../lib/site.mjs';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const fullTitle = title === 'Khodes' ? title : `${title} — Khodes`;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? absoluteSiteUrl('/')).href;
+const ogImage = absoluteSiteUrl('/og-image.svg');
+
+const navItems = [
+  { href: '/', label: 'Inicio' },
+  { href: '/downloads/', label: 'Descargas' },
+  { href: '/installation/', label: 'Instalación' },
+  { href: '/docs/', label: 'Documentación' },
+  { href: '/changelog/', label: 'Changelog' },
+  { href: '/license/', label: 'Licencia' },
+  { href: '/support/', label: 'Soporte' },
+];
+
+function isActive(href: string): boolean {
+  const target = withBase(href);
+  if (href === '/') return Astro.url.pathname === target;
+  return Astro.url.pathname === target || Astro.url.pathname.startsWith(target);
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a14" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Khodes" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href={withBase('/')}>K<span>hodes</span></a>
+        <nav class="site-nav" aria-label="Navegación principal">
+          <ul>
+            {
+              navItems.map((item) => (
+                <li>
+                  <a href={withBase(item.href)} aria-current={isActive(item.href) ? 'page' : undefined}>
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main" id="contenido">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer-inner">
+        <div>
+          <p><strong>Khodes</strong> — piano eléctrico sintetizado como plugin CLAP y VST3.</p>
+          <p>Original derivado de la voz Rhodes de Keys. No afiliado a fabricantes de pianos eléctricos.</p>
+          <p>
+            <a href={withBase('/license/')}>Licencia</a> ·
+            <a href={withBase('/support/')}>Soporte</a> ·
+            {REPO_URL ? <a href={REPO_URL}>Código fuente</a> : <span>Código fuente en el repositorio del proyecto</span>}
+          </p>
+        </div>
+        <SlintBadge />
+      </div>
+    </footer>
+  </body>
+</html>

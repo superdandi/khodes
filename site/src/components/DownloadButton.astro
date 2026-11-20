@@ -1,0 +1,39 @@
+---
+import { formatBytes, shortChecksum } from '../lib/format.mjs';
+
+interface DownloadAsset {
+  name: string;
+  url: string;
+  size: number;
+  checksum: string;
+}
+
+interface Props {
+  asset: DownloadAsset | null;
+  platformLabel: string;
+}
+
+const { asset, platformLabel } = Astro.props;
+---
+
+{
+  asset ? (
+    <div class="download-link">
+      <a
+        class="button"
+        href={asset.url}
+        data-download-asset={asset.name}
+        data-download-platform={platformLabel}
+        data-checksum={asset.checksum}
+        rel="noopener noreferrer"
+      >
+        Descargar para {platformLabel}
+      </a>
+      <small>
+        {formatBytes(asset.size)} · SHA-256 {shortChecksum(asset.checksum)}
+      </small>
+    </div>
+  ) : (
+    <p class="platform-status">No disponible en esta release.</p>
+  )
+}

@@ -1,0 +1,52 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ReleaseNotes from '../components/ReleaseNotes.astro';
+import { getReleaseData } from '../lib/releases.mjs';
+import { formatDate } from '../lib/format.mjs';
+
+const { release, repoUrl, message } = await getReleaseData();
+const releasesUrl = repoUrl ? `${repoUrl}/releases` : '';
+---
+
+<BaseLayout
+  title="Changelog"
+  description="Notas de la release publicada más reciente de Khodes y enlace al historial de GitHub Releases."
+>
+  <h1>Changelog</h1>
+  <p class="lede">
+    El historial de versiones se publica en las notas de GitHub Releases. Esta
+    página muestra la release más reciente que cumple el contrato de descargas.
+  </p>
+
+  {
+    release ? (
+      <section class="card" aria-labelledby="changelog-version">
+        <h2 id="changelog-version">{release.version}</h2>
+        <p class="release-meta">
+          {formatDate(release.publishedAt)} ·
+          {release.prerelease ? 'Preview sin firma' : 'Estable'}
+        </p>
+        <ReleaseNotes notes={release.notes} />
+        {release.releaseUrl ? (
+          <p><a href={release.releaseUrl}>Abrir notas completas en GitHub</a></p>
+        ) : null}
+      </section>
+    ) : (
+      <section class="card notice">
+        <h2>Sin notas publicadas</h2>
+        <p>{message || 'No hay releases publicadas con notas disponibles.'}</p>
+        {releasesUrl ? <p><a href={releasesUrl}>Ver historial en GitHub</a></p> : null}
+      </section>
+    )
+  }
+
+  <section class="section" aria-labelledby="estado-title">
+    <h2 id="estado-title">Estado del desarrollo</h2>
+    <p>
+      Las fases M1 a M7 están implementadas y verificadas localmente: motor de
+      voz, editor Slint, estado y presets, y mapeo MIDI avanzado. Quedan
+      pendientes la validación en DAWs reales, la matriz de hosts y el A/B
+      contra Keys; no se presentan como resultados cerrados.
+    </p>
+  </section>
+</BaseLayout>

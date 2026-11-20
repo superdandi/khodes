@@ -460,7 +460,68 @@ esta medición no se presenta como resultado aceptado. Registrado como M4-22.
 
 ---
 
-## 13. Definición de done
+## 13. Verificación del sitio y del pipeline de release
+
+### 13.1 Checks del sitio
+
+```sh
+cd site
+npm ci
+npm test
+npm run build
+npm run test:build
+```
+
+`npm test` cubre el cliente de releases: respuesta de API, drafts, prereleases,
+orden, contrato de nombres, exclusión de internos, plataformas ausentes, escape,
+modo offline y fallo de API sin filtrar el token. `test:build` verifica sobre
+`dist/` las páginas, los enlaces internos, la ausencia de secretos, el canonical,
+los metadatos Open Graph, `robots.txt`, `sitemap.xml` y la coherencia entre
+botones de descarga y `SHA256SUMS`.
+
+### 13.2 Build GitHub simulado
+
+Sin red y sin publicar nada:
+
+```sh
+cd site
+KHODES_MOCK_GITHUB=1 RELEASES_SOURCE=github \
+GITHUB_REPOSITORY=khodes/khodes GITHUB_TOKEN=token-de-prueba \
+NODE_OPTIONS="--import $PWD/scripts/mock-github-releases.mjs" \
+npm run build
+RELEASES_SOURCE=github GITHUB_REPOSITORY=khodes/khodes npm run test:build
+```
+
+Se esperan tres botones de descarga, notas con HTML escapado, checksums
+coherentes y ausencia del token en el HTML. El fixture no se usa en producción.
+
+### 13.3 Assets de release
+
+```sh
+node tools/verify-release-assets.mjs <directorio> v0.1.0-preview.1
+```
+
+Comprueba que hay exactamente tres ZIP de la versión, que `SHA256SUMS` los
+cubre sin entradas extra y que los hashes coinciden con los ficheros. Una firma
+modificada debe fallar el check.
+
+### 13.4 Fallback WASI en CPU x86-64-v2
+
+El binding nativo de `@astrojs/compiler-rs@0.5.3` produce `SIGILL` en CPUs sin
+AVX2/BMI2. En ese entorno el build requiere el binding WASI local descrito en
+[`site/README.md`](../site/README.md). No es un cambio del repositorio: en CI,
+con CPU moderna, basta `npm ci`.
+
+### 13.5 Estado de estas verificaciones
+
+Ejecutadas en local: 10/10 tests del sitio, build offline, build GitHub
+simulado, `test:build` en ambos modos y verificador de assets con caso positivo
+y negativo. No ejecutadas: validadores sobre el tag, workflow de Pages en GitHub
+y publicación manual de la release (M8-18…M8-20).
+
+---
+
+## 14. Definición de done
 
 Una feature está completa cuando:
 

@@ -1,0 +1,82 @@
+{
+  "schema": "khodes.thirdparty/v1",
+  "product": "Khodes",
+  "version": "0.1.0-preview.1",
+  "status": "pendiente-de-revision",
+  "note": "Inventario declarado a partir de Cargo.toml, Cargo.lock y site/package-lock.json. No sustituye la revisión legal de licencias ni genera avisos automáticos: cargo-bundle-licenses no está disponible en este entorno.",
+  "components": [
+    {
+      "name": "truce",
+      "version": "6.3.0",
+      "type": "rust-crate",
+      "license": "LicenseRef-TruceLicense-1.0",
+      "licenseDeclaredBy": "Cargo.lock / documentación de TRUCE",
+      "usage": "SDK de plugin, bindings CLAP y VST3",
+      "licenseTextIncluded": false,
+      "reviewRequired": true
+    },
+    {
+      "name": "truce-clap",
+      "version": "6.3.0",
+      "type": "rust-crate",
+      "license": "LicenseRef-TruceLicense-1.0",
+      "licenseDeclaredBy": "Cargo.lock / documentación de TRUCE",
+      "usage": "Binding CLAP",
+      "licenseTextIncluded": false,
+      "reviewRequired": true
+    },
+    {
+      "name": "truce-vst3",
+      "version": "6.3.0",
+      "type": "rust-crate",
+      "license": "LicenseRef-TruceLicense-1.0",
+      "licenseDeclaredBy": "Cargo.lock / documentación de TRUCE",
+      "usage": "Binding VST3",
+      "licenseTextIncluded": false,
+      "reviewRequired": true
+    },
+    {
+      "name": "truce-slint",
+      "version": "6.3.0",
+      "type": "rust-crate",
+      "license": "LicenseRef-TruceLicense-1.0",
+      "licenseDeclaredBy": "Cargo.lock / documentación de TRUCE",
+      "usage": "Integración entre TRUCE y Slint",
+      "licenseTextIncluded": false,
+      "reviewRequired": true
+    },
+    {
+      "name": "slint",
+      "version": "1.15.1",
+      "type": "rust-crate",
+      "license": "GPL-3.0-only OR LicenseRef-Slint-Royalty-free-2.0 OR commercial",
+      "licenseDeclaredBy": "documentación oficial de Slint",
+      "usage": "Interfaz del editor",
+      "selectedOption": "LicenseRef-Slint-Royalty-free-2.0",
+      "attributionBadge": "https://slint.dev/logo/MadeWithSlint-logo-light.svg",
+      "licenseTextIncluded": false,
+      "reviewRequired": true
+    },
+    {
+      "name": "astro",
+      "version": "7.4.13",
+      "type": "npm-package",
+      "license": "MIT",
+      "licenseDeclaredBy": "site/package-lock.json",
+      "usage": "Generador del sitio estático; no se distribuye con el plugin",
+      "licenseTextIncluded": false,
+      "reviewRequired": true
+    }
+  ],
+  "review": {
+    "completed": false,
+    "owner": "",
+    "date": "",
+    "checks": [
+      "Obtener y conservar el texto exacto de la licencia TRUCE 6.3 y su rider.",
+      "Obtener y conservar el texto de Slint Royalty-free 2.0 y comprobar que el badge cumple las guías de marca.",
+      "Generar el inventario completo de crates transitivos con una herramienta de licencias.",
+      "Comprobar que ningún crate con licencia incompatible se distribuye en el ZIP."
+    ]
+  }
+}

@@ -68,9 +68,10 @@ Antes de crear `vVERSION`:
    `-preview.N`, y el lockfile.
 2. **`VERSION.md`.** Arquitecturas exactas, requisitos de OS/runtime, revisión
    de fuente, instalación, limitaciones de seguridad y problemas conocidos.
-3. **`THIRDPARTY.json`.** Generado con `cargo-bundle-licenses 4.2.0` y revisado
-   manualmente. Resolver textos faltantes, copyrights y licencias de fuentes o
-   recursos nativos.
+3. **`THIRDPARTY.json`.** Inventario declarado de dependencias directas, con
+   `status` y `review` explícitos. Debe revisarse y ampliarse con los crates
+   transitivos antes de publicar. `cargo-bundle-licenses` no está disponible en
+   el entorno de desarrollo actual, así que el inventario no es automático.
 4. **Smoke tests reales.** Registrar pruebas en DAW por plataforma y formato,
    atadas a los artefactos candidatos. Completar [TESTING](TESTING.md) o
    documentar limitaciones aceptadas.
@@ -82,13 +83,16 @@ relleno para que CI pase.
 
 ### 3.1 Generación de avisos
 
+Cuando `cargo-bundle-licenses 4.2.0` esté disponible:
+
 ```sh
 cargo install cargo-bundle-licenses --version 4.2.0 --locked
 cargo bundle-licenses --format json --output target/THIRDPARTY-audit.json
-node tools/check-notices.mjs target/THIRDPARTY-audit.json
 ```
 
-La generación automática es una ayuda, no una revisión legal.
+El inventario automático es una ayuda, no una revisión legal. Hasta entonces,
+`THIRDPARTY.json` declara `pendiente-de-revision` y el gate solo comprueba que
+existe y es JSON válido. La revisión humana sigue siendo obligatoria.
 
 ---
 
@@ -109,18 +113,25 @@ git tag -a v0.1.0-preview.1 -m "Khodes 0.1.0-preview.1"
 git push origin v0.1.0-preview.1
 ```
 
-El tag dispara el workflow **release.yml**.
+El tag dispara el workflow **release.yml**. También puede iniciarse a mano con
+`gh workflow run release.yml -f version=v0.1.0-preview.1`; en ambos casos la
+versión se valida con el patrón `vMAJOR.MINOR.PATCH[-preview.N]`.
 
 ### 4.3 Qué hace el workflow
 
-1. Verifica que la versión del crate contenga `-preview.N`.
-2. Ejecuta fmt, Clippy, tests y `rt-paranoid`.
-3. Compila CLAP y VST3 para las tres plataformas.
-4. Valida los bundles exactos con `clap-validator` y `pluginval`.
-5. Comprueba avisos de terceros contra el baseline.
-6. Empaqueta los ZIP, `LICENSE`, `INSTALL.txt`, notas y `SHA256SUMS`.
-7. Crea un **draft prerelease**.
-8. Nunca publica ni sobrescribe una release publicada.
+1. **Gate:** exige `APPROVED.txt` con la versión exacta, comprueba `Cargo.toml`
+   y la presencia de `VERSION.md`, `THIRDPARTY.json`, `LICENSE` e `INSTALL.txt`.
+2. Ejecuta doctor, fmt, Clippy, tests y `rt-paranoid`.
+3. Compila CLAP y VST3 para Windows x64, macOS Apple silicon y Linux x64; en
+   x86-64 usa `--target-cpu v2`.
+4. Valida CLAP con `clap-validator` y VST3 con `pluginval` strictness 10, sobre
+   los bundles generados.
+5. Empaqueta tres ZIP unsigned con `LICENSE`, `INSTALL.txt` y
+   `THIRDPARTY.json`; genera `SHA256SUMS` por plataforma.
+6. Ensambla los assets y verifica con `tools/verify-release-assets.mjs` que hay
+   exactamente tres ZIP y que sus hashes coinciden.
+7. Crea un **draft prerelease**. Nunca publica ni sobrescribe una release
+   publicada.
 
 ### 4.4 Revisar el draft
 

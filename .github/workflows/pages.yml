@@ -1,0 +1,93 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22.23.4'
+
+jobs:
+  build:
+    name: Build static site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Configure site
+        run: |
+          set -eu
+          site_url="${{ vars.SITE_URL }}"
+          if [ -z "$site_url" ]; then
+            site_url="https://${{ github.repository_owner }}.github.io"
+          fi
+          site_base="${{ vars.SITE_BASE }}"
+          if [ -z "$site_base" ]; then
+            site_base="/khodes"
+          fi
+          echo "SITE_URL=$site_url" >> "$GITHUB_ENV"
+          echo "SITE_BASE=$site_base" >> "$GITHUB_ENV"
+          echo "RELEASES_SOURCE=github" >> "$GITHUB_ENV"
+          echo "GITHUB_REPOSITORY=${{ github.repository }}" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        working-directory: site
+        run: npm ci --no-audit --no-fund
+
+      - name: Unit tests
+        working-directory: site
+        run: npm test
+
+      - name: Build
+        working-directory: site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build
+
+      - name: Verify generated HTML
+        working-directory: site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run test:build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages
+          path: site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || github.event_name == 'release')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

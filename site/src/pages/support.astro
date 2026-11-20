@@ -1,0 +1,77 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getReleaseData } from '../lib/releases.mjs';
+import { withBase } from '../lib/site.mjs';
+
+const { repoUrl } = await getReleaseData();
+const issuesUrl = repoUrl ? `${repoUrl}/issues` : '';
+---
+
+<BaseLayout
+  title="Soporte"
+  description="Cómo informar de problemas en Khodes, qué datos incluir y política de privacidad del sitio estático."
+>
+  <h1>Soporte</h1>
+  <p class="lede">
+    Khodes es un proyecto en preview. Para informar de un fallo, indica la
+    versión exacta, el formato, el host, el sistema operativo y los pasos
+    mínimos para reproducirlo.
+  </p>
+
+  <section class="section" aria-labelledby="reportar-title">
+    <h2 id="reportar-title">Reportar un problema</h2>
+    {
+      issuesUrl ? (
+        <p><a href={issuesUrl}>Abrir un issue en el repositorio</a></p>
+      ) : (
+        <p class="notice">
+          El canal público de incidencias se anunciará cuando el repositorio de
+          distribución esté disponible. Mientras tanto, consulta la
+          documentación técnica del proyecto.
+        </p>
+      )
+    }
+    <p>Incluye, si puedes:</p>
+    <ul>
+      <li>Versión de Khodes y nombre exacto del ZIP descargado.</li>
+      <li>Formato cargado (CLAP o VST3) y versión del host.</li>
+      <li>Sistema operativo, arquitectura y versión.</li>
+      <li>Si el fallo ocurre al cargar, tocar, guardar o reabrir un proyecto.</li>
+      <li>Resultado de la verificación <code>SHA256SUMS</code>.</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="faq-title">
+    <h2 id="faq-title">Preguntas frecuentes</h2>
+    <dl class="faq">
+      <dt>El host no encuentra Khodes.</dt>
+      <dd>Revisa las rutas y el escaneo de plugins en la <a href={withBase('/installation/')}>guía de instalación</a>.</dd>
+
+      <dt>El editor no abre.</dt>
+      <dd>Comprueba que la versión del paquete coincide con la release y que el bundle no quedó en cuarentena.</dd>
+
+      <dt>¿La reverb consume mucha CPU?</dt>
+      <dd>
+        Es una limitación conocida registrada en el plan de trabajo. El valor
+        por defecto de reverb es cero; consulta las notas de release antes de
+        activarla.
+      </dd>
+
+      <dt>¿Hay compatibilidad garantizada con mi DAW?</dt>
+      <dd>
+        No. Solo se documenta después de una prueba real. Khodes publica CLAP y
+        VST3, pero eso no equivale a una matriz de compatibilidad validada.
+      </dd>
+    </dl>
+  </section>
+
+  <section class="section" aria-labelledby="privacidad-title">
+    <h2 id="privacidad-title">Privacidad</h2>
+    <p>
+      Este sitio es estático: no usa analítica propia, cookies, cuentas ni
+      formularios. Las páginas pueden cargar el badge de atribución desde
+      slint.dev; ese recurso se sirve desde el dominio de Slint. Los binarios se
+      descargan desde GitHub Releases.
+    </p>
+  </section>
+</BaseLayout>

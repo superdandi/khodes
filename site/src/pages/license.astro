@@ -1,0 +1,93 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SlintBadge from '../components/SlintBadge.astro';
+import { getReleaseData } from '../lib/releases.mjs';
+
+const { repoUrl } = await getReleaseData();
+---
+
+<BaseLayout
+  title="Licencia"
+  description="Licencias y atribuciones de Khodes: MIT para el código original, TRUCE, Slint y dependencias del sitio."
+>
+  <h1>Licencia y avisos</h1>
+  <p class="lede">
+    El código original de Khodes se publica bajo MIT. Las dependencias mantienen
+    sus propias licencias y el texto de esta sección no las relicencia.
+  </p>
+
+  <section class="section" aria-labelledby="mit-title">
+    <h2 id="mit-title">Código original (MIT)</h2>
+    <div class="checksums-block">
+      <pre><code>MIT License
+
+Copyright (c) 2026 Khodes contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</code></pre>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="terceros-title">
+    <h2 id="terceros-title">Terceros</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>TRUCE 6.3</h3>
+        <p>
+          Licencia <code>LicenseRef-TruceLicense-1.0</code>. Se distribuye bajo
+          su concesión para plugins de audio; no se presenta como MIT.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Slint 1.15.1</h3>
+        <p>
+          Khodes usa la opción royalty-free para aplicaciones de escritorio. Se
+          conserva el texto de licencia y se muestra el badge de atribución.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Astro y crates transitivos</h3>
+        <p>
+          Cada dependencia conserva su licencia. Los avisos detallados se
+          mantienen en el repositorio y en el paquete de cada release.
+        </p>
+      </article>
+    </div>
+    <p style="margin-top: 1.5rem;">
+      <SlintBadge />
+    </p>
+    {
+      repoUrl ? (
+        <p>
+          <a href={`${repoUrl}/blob/main/docs/LICENSING.md`}>
+            Política completa de licencias y distribución
+          </a>
+        </p>
+      ) : null
+    }
+  </section>
+
+  <section class="section" aria-labelledby="marcas-title">
+    <h2 id="marcas-title">Marcas</h2>
+    <p>
+      Khodes describe su sonido como “piano eléctrico de tine” o “inspirado en
+      pianos eléctricos de tine”. No usa marcas de fabricantes de instrumentos
+      como identidad propia ni sugiere respaldo oficial de terceros.
+    </p>
+  </section>
+</BaseLayout>

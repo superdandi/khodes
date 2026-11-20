@@ -1,0 +1,41 @@
+Instalación de Khodes 0.1.0-preview.1
+=====================================
+
+Khodes es un instrumento MIDI en formato CLAP y VST3. No es un efecto y el
+standalone de desarrollo no se distribuye.
+
+1. Verificación
+---------------
+Descarga el ZIP de tu plataforma y el archivo SHA256SUMS de la MISMA release.
+
+  sha256sum -c SHA256SUMS          # Linux
+  shasum -a 256 -c SHA256SUMS      # macOS
+  certutil -hashfile <archivo> SHA256   # Windows (comparar a mano)
+
+Los previews no están firmados ni notarizados. SHA256SUMS verifica integridad,
+no identidad del publicador.
+
+2. Extracción
+-------------
+Extrae Khodes.clap y Khodes.vst3. Las rutas habituales son:
+
+  Windows:  %COMMONPROGRAMFILES%\CLAP\Khodes.clap
+            %COMMONPROGRAMFILES%\VST3\Khodes.vst3
+  macOS:    ~/Library/Audio/Plug-Ins/CLAP/Khodes.clap
+            ~/Library/Audio/Plug-Ins/VST3/Khodes.vst3
+  Linux:    ~/.clap/Khodes.clap
+            ~/.vst3/Khodes.vst3
+
+3. Primer arranque
+------------------
+Reinicia el host y vuelve a escanear plugins. Carga Khodes en un proyecto
+vacío, envía una nota y comprueba que el editor abre. Guarda y reabre el
+proyecto de prueba para verificar el estado del host.
+
+4. Limitaciones
+---------------
+No se afirma compatibilidad con ningún DAW concreto sin una prueba real.
+La reverb puede consumir más CPU de lo previsto en equipos antiguos: el valor
+por defecto es cero.
+
+Consulta VERSION.md, LICENSE y THIRDPARTY.json para los avisos completos.

@@ -1,0 +1,35 @@
+---
+import DownloadButton from './DownloadButton.astro';
+import { PLATFORMS } from '../lib/releases.mjs';
+
+interface DownloadAsset {
+  name: string;
+  url: string;
+  size: number;
+  checksum: string;
+}
+
+interface Props {
+  platforms: Record<string, DownloadAsset | null>;
+}
+
+const { platforms } = Astro.props;
+---
+
+<div class="grid">
+  {
+    PLATFORMS.map((platform) => (
+      <section class="card platform" aria-labelledby={`platform-${platform.id}`}>
+        <div>
+          <h3 id={`platform-${platform.id}`}>{platform.label}</h3>
+          <p class="platform-status">{platform.requirement}</p>
+          <p class="platform-status">Instalación: {platform.location}</p>
+        </div>
+        <DownloadButton
+          asset={platforms[platform.id] ?? null}
+          platformLabel={platform.label}
+        />
+      </section>
+    ))
+  }
+</div>

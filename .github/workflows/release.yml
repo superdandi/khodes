@@ -1,0 +1,255 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag a preparar, p. ej. v0.1.0-preview.1'
+        required: true
+        type: string
+        pattern: '^v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+)?$'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+
+jobs:
+  gate:
+    name: Verificar aprobación y entradas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gate de aprobación humana
+        env:
+          VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          set -eu
+          printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+)?$' || {
+            echo "Versión inválida: $VERSION" >&2
+            exit 1
+          }
+          test -f APPROVED.txt || {
+            echo "Falta APPROVED.txt: esta release no tiene aprobación humana." >&2
+            exit 1
+          }
+          approved=$(tr -d '[:space:]' < APPROVED.txt)
+          test "$approved" = "$VERSION" || {
+            echo "APPROVED.txt contiene '$approved', no '$VERSION'." >&2
+            exit 1
+          }
+          cargo_version="${VERSION#v}"
+          grep -Fxq "version = \"$cargo_version\"" Cargo.toml || {
+            echo "Cargo.toml no declara la versión $cargo_version." >&2
+            exit 1
+          }
+          for required in VERSION.md THIRDPARTY.json LICENSE INSTALL.txt; do
+            test -s "$required" || { echo "Falta $required" >&2; exit 1; }
+          done
+          node -e "JSON.parse(require('fs').readFileSync('THIRDPARTY.json','utf8'))" || {
+            echo "THIRDPARTY.json no es JSON válido." >&2
+            exit 1
+          }
+          echo "Gate OK: $VERSION aprobada para preparar un draft."
+
+  build:
+    name: Build y validar ${{ matrix.platform }}
+    needs: gate
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+            clap_validator_url: https://github.com/free-audio/clap-validator/releases/download/0.4.1/clap-validator-0.4.1-127-g152b982-ubuntu-22.04.zip
+            clap_validator_sha256: 49edadcfb407ea0dd946ce418300e853fbd2660fa4b0d00e4f19ff8eef24ad90
+            pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Linux.zip
+          - os: windows-latest
+            platform: windows-x64
+            clap_validator_url: https://github.com/free-audio/clap-validator/releases/download/0.4.1/clap-validator-0.4.1-127-g152b982-windows.zip
+            clap_validator_sha256: d935c3af0a45c3911ea2e900f4aa5d6709dac82bb485f0c4ce28648ab2cd0c10
+            pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip
+          - os: macos-15
+            platform: macos
+            clap_validator_url: https://github.com/free-audio/clap-validator/releases/download/0.4.1/clap-validator-0.4.1-127-g152b982-macos-15-aarch64.zip
+            clap_validator_sha256: 719a0248ea431718bb7c92c8a0b9a78afa0bb23d692cf452e80973fe8b89282d
+            pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_macOS.zip
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config \
+            libasound2-dev libx11-dev libxkbcommon-dev \
+            libfontconfig1-dev libfreetype6-dev libudev-dev \
+            libgl1-mesa-dev xvfb
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: '1.92.0'
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+
+      - name: Install cargo-truce
+        run: cargo install cargo-truce --version 6.3.0 --locked
+
+      - name: Doctor
+        run: cargo truce doctor
+
+      - name: Format and Clippy
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+      - name: Tests
+        run: |
+          cargo test --locked --workspace
+          cargo test --locked --workspace --features rt-paranoid
+
+      - name: DSP boundary
+        run: sh tools/check-dsp-boundary.sh
+
+      - name: Build bundles
+        run: |
+          set -eu
+          if [ "${{ runner.arch }}" = "X64" ]; then
+            cargo truce build --clap --vst3 --target-cpu v2
+          else
+            cargo truce build --clap --vst3
+          fi
+          test -f target/bundles/Khodes.clap
+          test -f target/bundles/Khodes.vst3
+
+      - name: Install clap-validator
+        run: |
+          set -eu
+          mkdir -p tools/validators
+          curl -fsSL -o tools/validators/clap-validator.zip '${{ matrix.clap_validator_url }}'
+          node -e "const c=require('crypto'),f=require('fs');const h=c.createHash('sha256').update(f.readFileSync('tools/validators/clap-validator.zip')).digest('hex');if(h!=='${{ matrix.clap_validator_sha256 }}'){console.error('clap-validator checksum mismatch: '+h);process.exit(1)}"
+          unzip -q tools/validators/clap-validator.zip -d tools/validators/clap-validator
+
+      - name: Validate CLAP
+        run: |
+          set -eu
+          validator=$(find tools/validators/clap-validator -type f \( -name 'clap-validator' -o -name 'clap-validator.exe' \) | head -1)
+          test -n "$validator"
+          chmod +x "$validator"
+          "$validator" validate target/bundles/Khodes.clap
+
+      - name: Install pluginval
+        run: |
+          set -eu
+          curl -fsSL -o tools/validators/pluginval.zip '${{ matrix.pluginval_url }}'
+          unzip -q tools/validators/pluginval.zip -d tools/validators/pluginval
+
+      - name: Validate VST3
+        run: |
+          set -eu
+          pluginval=$(find tools/validators/pluginval -type f \( -name 'pluginval' -o -name 'pluginval.exe' \) | head -1)
+          test -n "$pluginval"
+          chmod +x "$pluginval"
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            xvfb-run -a "$pluginval" --strictness-level 10 --validate target/bundles/Khodes.vst3
+          else
+            "$pluginval" --strictness-level 10 --validate target/bundles/Khodes.vst3
+          fi
+
+      - name: Package unsigned ZIP and checksum
+        env:
+          VERSION: ${{ env.RELEASE_VERSION }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -eu
+          version="${VERSION#v}"
+          zipname="Khodes-${version}-${PLATFORM}-unsigned.zip"
+          stage="dist/${version}"
+          mkdir -p "$stage"
+          cp target/bundles/Khodes.clap target/bundles/Khodes.vst3 "$stage/"
+          cp LICENSE INSTALL.txt THIRDPARTY.json "$stage/"
+          (
+            cd "$stage"
+            if [ "${{ runner.os }}" = "Windows" ]; then
+              7z a -tzip "../${zipname}" . >/dev/null
+            else
+              zip -qr "../${zipname}" .
+            fi
+          )
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd dist && sha256sum "$zipname" > SHA256SUMS)
+          else
+            (cd dist && shasum -a 256 "$zipname" > SHA256SUMS)
+          fi
+          cat dist/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.platform }}
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  assemble:
+    name: Ensamblar draft de release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bundle-*
+          path: artifacts
+
+      - name: Verify and assemble assets
+        env:
+          VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          set -eu
+          mkdir -p release
+          find artifacts -type f -name '*.zip' -exec cp {} release/ \;
+          : > release/SHA256SUMS
+          find artifacts -type f -name SHA256SUMS -exec cat {} \; | sort -k2 >> release/SHA256SUMS
+          cp LICENSE INSTALL.txt THIRDPARTY.json VERSION.md release/
+          node tools/verify-release-assets.mjs release "$VERSION"
+
+      # El flag --draft es obligatorio. Un humano revisa y publica desde la UI.
+      - name: Create draft prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          set -eu
+          gh release create "$VERSION" \
+            --draft \
+            --prerelease \
+            --title "Khodes $VERSION" \
+            --generate-notes \
+            release/*.zip \
+            release/SHA256SUMS \
+            release/LICENSE \
+            release/INSTALL.txt \
+            release/THIRDPARTY.json \
+            release/VERSION.md
+          echo "Draft creado. CI NO publica: revisa y publica manualmente desde GitHub."
